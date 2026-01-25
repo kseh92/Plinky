@@ -1,0 +1,7 @@
+{
+  "name": "Paper Instruments",
+  "description": "An interactive educational app that turns hand-drawn sketches into playable musical instruments using AI and real-time hand tracking.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

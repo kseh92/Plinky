@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats } from './types';
-import { INSTRUMENTS } from './constants';
+import { INSTRUMENTS, PRESET_ZONES } from './constants';
 import { generateBlueprint, scanDrawing } from './geminiService';
 import BlueprintDisplay from './components/BlueprintDisplay';
 import CameraScanner from './components/CameraScanner';
@@ -38,6 +38,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleQuickStart = () => {
+    if (!selectedType) return;
+    setHitZones(PRESET_ZONES[selectedType]);
+    playStartTimeRef.current = Date.now();
+    setStep('play');
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,35 +127,46 @@ const App: React.FC = () => {
       {step === 'provide' && selectedType && (
         <div className="flex flex-col items-center gap-8 w-full max-w-2xl">
           <h2 className="text-3xl font-bold text-blue-800 text-center">Ready to play your {selectedType}?</h2>
+          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
             <button
               onClick={() => setStep('scan')}
               className="bg-white border-4 border-blue-400 p-8 rounded-3xl shadow-lg hover:bg-blue-50 transition-colors flex flex-col items-center gap-4"
             >
               <span className="text-5xl">📷</span>
-              <span className="font-bold text-blue-600">Use Camera</span>
+              <span className="font-bold text-blue-600">Scan Paper Drawing</span>
             </button>
             
-            <label className="cursor-pointer bg-white border-4 border-green-400 p-8 rounded-3xl shadow-lg hover:bg-green-50 transition-colors flex flex-col items-center gap-4">
+            <button
+              onClick={handleQuickStart}
+              className="bg-yellow-400 border-4 border-yellow-600 p-8 rounded-3xl shadow-lg hover:bg-yellow-300 transition-colors flex flex-col items-center gap-4 group"
+            >
+              <span className="text-5xl group-hover:scale-110 transition-transform">⚡</span>
+              <span className="font-bold text-yellow-900">Instant Demo Mode</span>
+              <span className="text-xs text-yellow-800 opacity-60">Use pre-baked hit zones</span>
+            </button>
+          </div>
+
+          <div className="w-full h-px bg-gray-200 my-4" />
+
+          <div className="flex flex-col items-center gap-4">
+            <label className="cursor-pointer text-green-600 font-bold hover:underline">
               <input 
                 type="file" 
                 className="hidden" 
                 accept="image/*" 
                 onChange={handleFileUpload}
               />
-              <span className="text-5xl">📁</span>
-              <span className="font-bold text-green-600">Upload Drawing</span>
+              📁 Upload an image instead
             </label>
+
+            <button
+              onClick={handleShowBlueprint}
+              className="text-blue-500 font-bold hover:underline"
+            >
+              Wait, I need a blueprint guide!
+            </button>
           </div>
-
-          <div className="w-full h-px bg-gray-200 my-4" />
-
-          <button
-            onClick={handleShowBlueprint}
-            className="text-blue-500 font-bold hover:underline"
-          >
-            Wait, I need a blueprint guide!
-          </button>
           
           <button onClick={reset} className="text-gray-400 font-bold uppercase tracking-widest text-sm">Cancel</button>
         </div>
@@ -164,15 +182,12 @@ const App: React.FC = () => {
             >
               OPEN CAMERA 📸
             </button>
-            <label className="px-12 py-5 bg-green-500 text-white rounded-full text-xl font-black shadow-xl hover:bg-green-600 transition-all cursor-pointer">
-              <input 
-                type="file" 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleFileUpload}
-              />
-              UPLOAD IMAGE 📁
-            </label>
+            <button
+              onClick={handleQuickStart}
+              className="px-12 py-5 bg-yellow-500 text-white rounded-full text-xl font-black shadow-xl hover:bg-yellow-600 transition-all"
+            >
+              TRY DEMO ⚡
+            </button>
           </div>
           <button onClick={reset} className="text-gray-400 font-bold uppercase tracking-widest text-sm">Back to Start</button>
         </div>

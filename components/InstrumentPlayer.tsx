@@ -76,7 +76,7 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
 
   const handleStart = async () => {
     setIsAudioLoading(true);
-    await toneService.init();
+    await toneService.init(); 
     await toneService.startRecording();
     setIsAudioLoading(false);
     setHasStarted(true);
@@ -134,7 +134,6 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
                   }
                 });
 
-                // Draw Pointer
                 ctx.beginPath();
                 ctx.arc(tip.x * canvasRef.current.width, tip.y * canvasRef.current.height, 12, 0, 2 * Math.PI);
                 ctx.fillStyle = tip === indexTip ? 'rgba(239, 68, 68, 0.8)' : 'rgba(59, 130, 246, 0.8)';
@@ -146,7 +145,6 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
             });
           }
 
-          // Trigger sound and particles
           frameHits.forEach(sound => {
             if (!activeHitsRef.current.has(sound)) {
               toneService.play(sound);
@@ -161,11 +159,10 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
 
           activeHitsRef.current = frameHits;
 
-          // Update and Draw Particles
           particlesRef.current = particlesRef.current.filter(p => {
             p.x += p.vx;
             p.y += p.vy;
-            p.vy += 0.5; // gravity
+            p.vy += 0.5;
             p.life -= 0.025;
             
             if (p.life > 0) {
@@ -180,7 +177,6 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
             return false;
           });
 
-          // Draw Hit Zones
           hitZones.forEach(zone => {
             const isActive = frameHits.has(zone.sound);
             const rectX = (zone.x / 100) * canvasRef.current.width;
@@ -196,9 +192,15 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
             ctx.fillRect(rectX, rectY, rectW, rectH);
             
             ctx.fillStyle = isActive ? '#fff' : '#1e3a8a';
-            ctx.font = 'bold 16px Fredoka One';
+            ctx.font = 'bold 18px Fredoka One';
             ctx.textAlign = 'center';
-            ctx.fillText(zone.label.toUpperCase(), rectX + rectW/2, rectY + rectH/2 + 6);
+            ctx.textBaseline = 'middle';
+            
+            // Logic to prevent label overlap: 
+            // If the key is tall (white key), push label towards bottom. 
+            // If it is short (black key), keep it centered.
+            const labelY = zone.height > 30 ? rectY + (rectH * 0.8) : rectY + (rectH / 2);
+            ctx.fillText(zone.label.toUpperCase(), rectX + rectW/2, labelY);
           });
         }
       }
@@ -240,14 +242,14 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
             <div className="absolute inset-0 flex items-center justify-center bg-blue-600/60 backdrop-blur-sm z-30 transition-all">
               <div className="text-center p-12 bg-white rounded-[4rem] shadow-2xl max-w-md mx-4 border-8 border-yellow-400">
                 <div className="text-6xl mb-4">🎨</div>
-                <h3 className="text-5xl font-black text-blue-600 mb-6 leading-tight">THE SHOW IS ABOUT TO START!</h3>
-                <p className="text-gray-600 mb-10 font-bold text-lg">Your drawing is ready. Move your fingers over the zones to unleash the sound!</p>
+                <h3 className="text-5xl font-black text-blue-600 mb-6 leading-tight uppercase">Ready to Rock?</h3>
+                <p className="text-gray-600 mb-10 font-bold text-lg">Your drawing zones are mapped. Touch the squares with your fingers!</p>
                 <button
                   onClick={handleStart}
                   disabled={isAudioLoading}
                   className="w-full py-8 bg-red-500 hover:bg-red-600 text-white text-4xl font-black rounded-full shadow-[0_10px_0_rgb(185,28,28)] transition-all active:translate-y-2 active:shadow-none"
                 >
-                  {isAudioLoading ? 'WARMING UP...' : 'LET\'S ROCK!'}
+                  {isAudioLoading ? 'Warming up...' : 'LET\'S ROCK!'}
                 </button>
               </div>
             </div>

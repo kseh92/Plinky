@@ -2,10 +2,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData } from "./types";
 
-const API_KEY = process.env.API_KEY || "";
-
+// Note: Always initialize GoogleGenAI with { apiKey: process.env.API_KEY } directly.
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Create a "blueprint" for a hand-drawn ${instrument}. 
@@ -47,7 +46,7 @@ export const generateBlueprint = async (instrument: InstrumentType): Promise<Ins
 };
 
 export const scanDrawing = async (instrument: InstrumentType, base64Image: string): Promise<HitZone[]> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const pianoPrompt = `Detect ALL individual keys in this piano drawing (both white and black/sharps).
     
@@ -114,7 +113,7 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
 };
 
 export const generateSessionRecap = async (stats: SessionStats): Promise<RecapData> => {
-  const ai = new GoogleGenAI({ apiKey: API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const prompt = `Act as an encouraging, playful music critic for a kid. 
   The kid just played a paper-drawn ${stats.instrument} for ${stats.durationSeconds} seconds.
   

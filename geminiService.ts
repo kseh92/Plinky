@@ -2,7 +2,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData } from "./types";
 
-// Note: Always initialize GoogleGenAI with { apiKey: process.env.API_KEY } directly.
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
@@ -49,35 +48,9 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const pianoPrompt = `Detect ALL individual keys in this piano drawing (both white and black/sharps).
-    
-    Identify keys from left to right:
-    - White keys: c4, d4, e4, f4, g4, a4, b4, c5, d5, e5, f5, g5, a5, b5.
-    - Black keys (sharps) based on their position:
-      * Between C4/D4 -> cs4 (C#4)
-      * Between D4/E4 -> ds4 (D#4)
-      * Between F4/G4 -> fs4 (F#4)
-      * Between G4/A4 -> gs4 (G#4)
-      * Between A4/B4 -> as4 (A#4)
-      * Repeat for octave 5 (cs5, ds5, fs5, gs5, as5).
+    Identify keys from left to right. Provide accurate bounding boxes. Return JSON.`;
 
-    IMPORTANT: Provide an accurate bounding box for EVERY individual key. Black keys are usually thinner and higher up.
-    Return a JSON array of objects with {sound, label, x, y, width, height}. 
-    Coordinates: percentages (0-100) relative to the image.`;
-
-  const drumPrompt = `Analyze this hand-drawn drum kit. Use size, color, and position to identify parts:
-       
-       MAPPING RULES:
-       - Yellow/Gold circles (top left/right) -> sound: "crash cymbal"
-       - Small yellow circles -> sound: "hi-hat"
-       - Large central circle (bottom) -> sound: "kick drum"
-       - Medium red-rimmed circle -> sound: "snare drum"
-       - Blue-rimmed top drum -> sound: "high tom"
-       - Yellow-rimmed top drum -> sound: "mid tom"
-       - Large side drums -> sound: "floor tom"
-       
-       BE SPECIFIC WITH LABELS. Use "high tom", "mid tom", "floor tom", "crash", "kick".
-       Return a JSON array of objects with {sound, label, x, y, width, height}. 
-       Coordinates: percentages (0-100).`;
+  const drumPrompt = `Analyze this hand-drawn drum kit. Identify kick, snare, toms, hi-hat, and crash. Return JSON.`;
 
   const prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
 
@@ -114,12 +87,28 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
 
 export const generateSessionRecap = async (stats: SessionStats): Promise<RecapData> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const prompt = `Act as an encouraging, playful music critic for a kid. 
-  The kid just played a paper-drawn ${stats.instrument} for ${stats.durationSeconds} seconds.
   
-  1. Write a short, exciting quote about their performance.
-  2. Compare their vibe to a famous real artist (e.g., "energy of Sheila E.", "soul of Elton John").
-  3. Suggest a real, popular song for them to check out next on YouTube Music.
+  const intensityLabel = stats.intensity > 4 ? "Extremely High (Shredding/Rapid)" : 
+                        stats.intensity > 1.5 ? "Moderate (Groovy/Rhythmic)" : "Low (Calm/Minimalist)";
+                        
+  const varietyLabel = stats.uniqueNotesCount > 10 ? "Very High (Experimental/Orchestral)" :
+                      stats.uniqueNotesCount > 4 ? "Good (Balanced)" : "Focused (Minimal)";
+
+  const prompt = `Act as an encouraging music critic for a kid playing a paper ${stats.instrument}.
+  
+  PERFORMANCE DATA:
+  - Duration: ${stats.durationSeconds}s
+  - Intensity: ${intensityLabel}
+  - Sound Variety: ${varietyLabel}
+  
+  INSTRUCTIONS:
+  1. Write a witty critic quote.
+  2. Compare them to a FAMOUS POP or ROCK artist.
+  3. Give them a cool nickname (performanceStyle).
+  4. Recommend EXACTLY 3 tracks that match their INTENSITY.
+     - SELECTION CRITERIA: Focus on FAMOUS POP, MODERN HITS, or ICONIC CLASSICS (e.g., Taylor Swift, Queen, Imagine Dragons, etc.).
+     - Avoid obscure or classical pieces like Erik Satie unless the variety is extremely experimental.
+     - LINK FORMAT: The youtubeMusicUrl MUST be a search link: https://music.youtube.com/search?q=[Song+Name]+[Artist+Name]
   
   Return JSON.`;
 
@@ -133,17 +122,21 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
         properties: {
           criticQuote: { type: Type.STRING },
           artistComparison: { type: Type.STRING },
-          recommendedSong: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              artist: { type: Type.STRING },
-              youtubeMusicUrl: { type: Type.STRING }
-            },
-            required: ["title", "artist", "youtubeMusicUrl"]
+          performanceStyle: { type: Type.STRING },
+          recommendedSongs: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                artist: { type: Type.STRING },
+                youtubeMusicUrl: { type: Type.STRING }
+              },
+              required: ["title", "artist", "youtubeMusicUrl"]
+            }
           }
         },
-        required: ["criticQuote", "artistComparison", "recommendedSong"]
+        required: ["criticQuote", "artistComparison", "performanceStyle", "recommendedSongs"]
       }
     }
   });

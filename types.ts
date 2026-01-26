@@ -31,14 +31,20 @@ export interface InstrumentBlueprint {
 export interface SessionStats {
   instrument: InstrumentType;
   durationSeconds: number;
+  noteCount: number;
+  uniqueNotesCount: number;
+  intensity: number; // notes per second
+}
+
+export interface RecommendedTrack {
+  title: string;
+  artist: string;
+  youtubeMusicUrl: string;
 }
 
 export interface RecapData {
   criticQuote: string;
   artistComparison: string;
-  recommendedSong: {
-    title: string;
-    artist: string;
-    youtubeMusicUrl: string;
-  };
+  performanceStyle: string;
+  recommendedSongs: RecommendedTrack[];
 }

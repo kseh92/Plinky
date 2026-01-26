@@ -18,6 +18,7 @@ class ToneService {
   private recorder: Tone.Recorder | null = null;
   private initialized = false;
   private lastPlayTime = 0;
+  private _recordingStart = 0;
 
   async init() {
     if (this.initialized) return;
@@ -91,7 +92,6 @@ class ToneService {
       Tone.getDestination().connect(this.recorder);
       
       this.initialized = true;
-      console.log("Audio Engine Ready: Customized Triple-Tom Engine Active.");
     } catch (err) {
       console.error("ToneService Init Error:", err);
     }
@@ -129,20 +129,17 @@ class ToneService {
         return;
       }
       
-      // Triple Tom Routing
       if (id.includes('tom')) {
         if (id.includes('hi')) {
           this.tomHi?.triggerAttackRelease(220, "16n", triggerTime);
         } else if (id.includes('mid')) {
           this.tomMid?.triggerAttackRelease(150, "16n", triggerTime);
         } else {
-          // Low tom or Floor tom
           this.tomLow?.triggerAttackRelease(95, "16n", triggerTime);
         }
         return;
       }
 
-      // Piano Notes
       const noteMap: Record<string, string> = {
         'c4': 'C4', 'cs4': 'C#4', 'c#4': 'C#4', 'd4': 'D4', 'ds4': 'D#4', 'd#4': 'D#4', 'e4': 'E4', 
         'f4': 'F4', 'fs4': 'F#4', 'f#4': 'F#4', 'g4': 'G4', 'gs4': 'G#4', 'g#4': 'G#4', 'a4': 'A4', 'as4': 'A#4', 'a#4': 'A#4', 'b4': 'B4',
@@ -161,16 +158,19 @@ class ToneService {
 
   async startRecording() {
     if (this.recorder?.state !== 'started') {
+      this._recordingStart = performance.now();
       this.recorder?.start();
     }
   }
 
-  async stopRecording() {
+  async stopRecording(): Promise<{ blob: Blob; duration: number } | null> {
     if (this.recorder?.state === 'started') {
       try {
-        // Short delay to capture the ring out of the last note
+        // Capture ring-out buffer
         await new Promise(r => setTimeout(r, 800));
-        return await this.recorder.stop();
+        const blob = await this.recorder.stop();
+        const duration = (performance.now() - this._recordingStart) / 1000;
+        return { blob, duration };
       } catch (e) {
         return null;
       }

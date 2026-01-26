@@ -1,5 +1,5 @@
 
-import React, { useMemo, useEffect, useState } from 'react';
+import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { SessionStats, RecapData } from '../types';
 import { generateSessionRecap } from '../geminiService';
 import RecapCard from './RecapCard';
@@ -13,13 +13,69 @@ interface Props {
 const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [recap, setRecap] = useState<RecapData | null>(null);
   const [isRecapLoading, setIsRecapLoading] = useState(false);
+  const [accurateDuration, setAccurateDuration] = useState<number | null>(null);
+  const [isMeasuring, setIsMeasuring] = useState(true);
 
+  const audioUrl = useMemo(() => {
+    if (!recording) return null;
+    return URL.createObjectURL(recording);
+  }, [recording]);
+
+  // Step 1: Extract actual file duration
+  useEffect(() => {
+    if (!audioUrl) {
+      setIsMeasuring(false);
+      return;
+    }
+
+    const tempAudio = new Audio(audioUrl);
+    
+    const handleLoadedMetadata = () => {
+      // Some browsers return Infinity for stream-based blobs initially
+      if (tempAudio.duration === Infinity) {
+        tempAudio.currentTime = 1e10; // Seek to a huge value
+        tempAudio.ontimeupdate = () => {
+          tempAudio.ontimeupdate = null;
+          const finalDuration = tempAudio.duration;
+          setAccurateDuration(Math.round(finalDuration));
+          tempAudio.currentTime = 0;
+          setIsMeasuring(false);
+        };
+      } else {
+        setAccurateDuration(Math.round(tempAudio.duration));
+        setIsMeasuring(false);
+      }
+    };
+
+    tempAudio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    // Fallback if metadata fails
+    const timer = setTimeout(() => {
+        if (isMeasuring) {
+            setAccurateDuration(stats?.durationSeconds || 0);
+            setIsMeasuring(false);
+        }
+    }, 2000);
+
+    return () => {
+        tempAudio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+        clearTimeout(timer);
+    };
+  }, [audioUrl, stats]);
+
+  // Step 2: Fetch Recap only once we have the accurate duration
   useEffect(() => {
     const fetchRecap = async () => {
-      if (!stats) return;
+      if (!stats || isMeasuring || accurateDuration === null) return;
+      
       setIsRecapLoading(true);
       try {
-        const data = await generateSessionRecap(stats);
+        // Create calibrated stats for Gemini
+        const calibratedStats: SessionStats = {
+          ...stats,
+          durationSeconds: accurateDuration,
+          intensity: stats.noteCount / (accurateDuration || 1)
+        };
+        const data = await generateSessionRecap(calibratedStats);
         setRecap(data);
       } catch (err) {
         console.error("Failed to generate recap", err);
@@ -28,12 +84,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       }
     };
     fetchRecap();
-  }, [stats]);
-
-  const audioUrl = useMemo(() => {
-    if (!recording) return null;
-    return URL.createObjectURL(recording);
-  }, [recording]);
+  }, [stats, accurateDuration, isMeasuring]);
 
   const handleDownload = () => {
     if (!audioUrl) return;
@@ -57,16 +108,20 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
             <p className="text-2xl font-black text-blue-700">{stats?.instrument.toUpperCase()}</p>
           </div>
           <div className="bg-green-50 rounded-3xl p-6 text-center">
-            <p className="text-xs font-black text-green-400 uppercase tracking-widest mb-1">Duration</p>
-            <p className="text-2xl font-black text-green-700">{stats?.durationSeconds}s</p>
+            <p className="text-xs font-black text-green-400 uppercase tracking-widest mb-1">Length</p>
+            <p className="text-2xl font-black text-green-700">
+              {isMeasuring ? '...' : `${accurateDuration}s`}
+            </p>
           </div>
         </div>
 
         {/* AI Recap Card */}
-        {isRecapLoading ? (
+        {isRecapLoading || isMeasuring ? (
           <div className="w-full py-12 flex flex-col items-center justify-center bg-gray-50 rounded-[2.5rem] border-4 border-dashed border-gray-200">
             <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-blue-500 font-black animate-pulse uppercase tracking-widest">Calling the Critic...</p>
+            <p className="text-blue-500 font-black animate-pulse uppercase tracking-widest">
+              {isMeasuring ? 'Syncing Audio...' : 'Calling the Critic...'}
+            </p>
           </div>
         ) : recap ? (
           <RecapCard recap={recap} />

@@ -17,8 +17,6 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
-  
-  const playStartTimeRef = useRef<number>(0);
 
   const handlePick = (type: InstrumentType) => {
     setSelectedType(type);
@@ -43,7 +41,6 @@ const App: React.FC = () => {
   const handleQuickStart = () => {
     if (!selectedType) return;
     setHitZones(PRESET_ZONES[selectedType]);
-    playStartTimeRef.current = Date.now();
     setStep('play');
   };
 
@@ -66,7 +63,6 @@ const App: React.FC = () => {
     try {
       const zones = await scanDrawing(selectedType, base64);
       setHitZones(zones);
-      playStartTimeRef.current = Date.now();
       setStep('play');
     } catch (err) {
       setError("We couldn't read your drawing. Make sure it's bright and clear!");
@@ -75,12 +71,15 @@ const App: React.FC = () => {
     }
   };
 
-  const handleFinishedPlaying = (blob: Blob | null) => {
-    const duration = Math.floor((Date.now() - playStartTimeRef.current) / 1000);
+  const handleFinishedPlaying = (blob: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number }) => {
+    const roundedDuration = Math.max(1, Math.round(stats.duration));
     if (selectedType) {
       setSessionStats({
         instrument: selectedType,
-        durationSeconds: duration
+        durationSeconds: roundedDuration,
+        noteCount: stats.noteCount,
+        uniqueNotesCount: stats.uniqueNotes.size,
+        intensity: stats.noteCount / stats.duration
       });
     }
     setRecording(blob);

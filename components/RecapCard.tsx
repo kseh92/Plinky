@@ -13,29 +13,52 @@ const RecapCard: React.FC<Props> = ({ recap }) => {
       <div className="absolute bottom-0 left-0 p-4 text-indigo-200 text-6xl opacity-20 pointer-events-none">🎵</div>
       
       <div className="relative z-10 flex flex-col items-center">
-        <div className="bg-blue-600 text-white px-6 py-2 rounded-full text-sm font-black uppercase tracking-widest mb-2 shadow-md">
-          The Gemini Critic Says:
+        <div className="bg-blue-600 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest mb-4 shadow-md">
+          Gemini AI Studio
         </div>
         
-        <p className="text-blue-500 font-black text-xl mb-6 uppercase tracking-tighter text-center">
-          aka "{recap.performanceStyle}"
+        {recap.genre && (
+          <div className="mb-4 text-indigo-600 font-black px-4 py-1 bg-white/60 backdrop-blur-md rounded-lg border border-indigo-100 shadow-sm text-sm uppercase tracking-[0.2em]">
+            Genre: {recap.genre}
+          </div>
+        )}
+
+        <p className="text-blue-500 font-black text-xl mb-4 uppercase tracking-tighter text-center leading-none">
+          "{recap.performanceStyle}"
         </p>
         
-        <blockquote className="text-2xl md:text-3xl font-black text-gray-800 text-center mb-8 leading-tight italic max-w-lg">
+        <blockquote className="text-2xl md:text-3xl font-black text-gray-800 text-center mb-6 leading-tight italic max-w-lg">
           "{recap.criticQuote}"
         </blockquote>
         
-        <div className="flex items-center gap-4 mb-10">
+        <div className="flex items-center gap-4 mb-8">
           <div className="w-12 h-px bg-blue-300" />
           <p className="text-lg font-bold text-blue-600 text-center uppercase tracking-tighter">
-            {recap.artistComparison}
+            Like a young {recap.artistComparison}
           </p>
           <div className="w-12 h-px bg-blue-300" />
         </div>
 
+        {recap.mixingSuggestion && (
+          <div className="w-full bg-white/40 p-4 rounded-2xl border border-blue-100 mb-8 grid grid-cols-2 md:grid-cols-3 gap-2 text-[10px] font-bold uppercase text-blue-400 tracking-wider">
+             <div className="flex flex-col items-center p-2 bg-white/80 rounded-xl shadow-sm">
+                <span>Reverb</span>
+                <span className="text-blue-600 text-sm">{Math.round(recap.mixingSuggestion.reverbAmount * 100)}%</span>
+             </div>
+             <div className="flex flex-col items-center p-2 bg-white/80 rounded-xl shadow-sm">
+                <span>Distortion</span>
+                <span className="text-blue-600 text-sm">{Math.round(recap.mixingSuggestion.distortionAmount * 100)}%</span>
+             </div>
+             <div className="flex flex-col items-center p-2 bg-white/80 rounded-xl shadow-sm">
+                <span>Compressor</span>
+                <span className="text-blue-600 text-sm">{recap.mixingSuggestion.compressionThreshold}dB</span>
+             </div>
+          </div>
+        )}
+
         <div className="w-full space-y-4">
           <div className="flex items-center gap-2 mb-2">
-             <span className="text-sm font-black text-indigo-400 uppercase tracking-[0.2em]">Your Custom Mixtape</span>
+             <span className="text-xs font-black text-indigo-400 uppercase tracking-[0.2em]">Studio Recommendations</span>
              <div className="h-px flex-1 bg-indigo-100" />
           </div>
           

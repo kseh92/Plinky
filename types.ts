@@ -1,6 +1,20 @@
 
 export type InstrumentType = 'Drum' | 'Piano' | 'Guitar';
 
+export interface PerformanceEvent {
+  timestamp: number; // ms relative to recording start
+  sound: string;
+}
+
+export interface MixingPreset {
+  reverbAmount: number; // 0 to 1
+  compressionThreshold: number; // -100 to 0
+  bassBoost: number; // dB
+  midBoost: number; // dB
+  trebleBoost: number; // dB
+  distortionAmount: number; // 0 to 1
+}
+
 export interface BlueprintShape {
   type: 'circle' | 'rect';
   id: string;
@@ -34,6 +48,7 @@ export interface SessionStats {
   noteCount: number;
   uniqueNotesCount: number;
   intensity: number; // notes per second
+  eventLog?: PerformanceEvent[];
 }
 
 export interface RecommendedTrack {
@@ -47,4 +62,8 @@ export interface RecapData {
   artistComparison: string;
   performanceStyle: string;
   recommendedSongs: RecommendedTrack[];
+  mixingSuggestion?: MixingPreset;
+  genre?: string;
+  trackTitle?: string;
+  extendedEventLog?: PerformanceEvent[];
 }

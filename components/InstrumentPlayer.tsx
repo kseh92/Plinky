@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
-import { HitZone } from '../types';
+import { HitZone, PerformanceEvent } from '../types';
 import { toneService } from '../services/toneService';
 
 interface Particle {
@@ -16,7 +16,7 @@ interface Particle {
 
 interface Props {
   hitZones: HitZone[];
-  onExit: (recording: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number }) => void;
+  onExit: (recording: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number; eventLog: PerformanceEvent[] }) => void;
 }
 
 const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
@@ -82,6 +82,16 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
   const handleStart = async () => {
     setIsAudioLoading(true);
     await toneService.init(); 
+    // Apply a default "Pro" mixing preset on start
+    // Fix: Added missing distortionAmount to comply with MixingPreset type
+    toneService.applyMixingPreset({
+      reverbAmount: 0.2,
+      compressionThreshold: -24,
+      bassBoost: 2,
+      midBoost: 0,
+      trebleBoost: 4,
+      distortionAmount: 0
+    });
     await toneService.startRecording();
     setIsAudioLoading(false);
     setHasStarted(true);
@@ -93,7 +103,8 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
     onExit(result?.blob || null, {
       noteCount: noteCountRef.current,
       uniqueNotes: uniqueNotesRef.current,
-      duration: result?.duration || 0
+      duration: result?.duration || 0,
+      eventLog: result?.eventLog || []
     });
   };
 

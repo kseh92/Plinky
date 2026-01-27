@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats } from './types';
+import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent } from './types';
 import { INSTRUMENTS, PRESET_ZONES } from './constants';
 import { generateBlueprint, scanDrawing } from './geminiService';
 import BlueprintDisplay from './components/BlueprintDisplay';
@@ -71,7 +71,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleFinishedPlaying = (blob: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number }) => {
+  const handleFinishedPlaying = (blob: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number; eventLog: PerformanceEvent[] }) => {
     const roundedDuration = Math.max(1, Math.round(stats.duration));
     if (selectedType) {
       setSessionStats({
@@ -79,7 +79,8 @@ const App: React.FC = () => {
         durationSeconds: roundedDuration,
         noteCount: stats.noteCount,
         uniqueNotesCount: stats.uniqueNotes.size,
-        intensity: stats.noteCount / stats.duration
+        intensity: stats.noteCount / stats.duration,
+        eventLog: stats.eventLog
       });
     }
     setRecording(blob);

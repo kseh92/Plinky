@@ -1,6 +1,6 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
-import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types";
+import { GoogleGenAI, Modality, Type, GenerateContentResponse } from "@google/genai";
+import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, PerformanceEvent, MixingPreset } from "./types";
 
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -84,18 +84,18 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
 
 export const generateSessionRecap = async (stats: SessionStats): Promise<RecapData> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const intensityLabel = stats.intensity > 4 ? "Extremely High (Shredding/Rapid)" : 
-                        stats.intensity > 1.5 ? "Moderate (Groovy/Rhythmic)" : "Low (Calm/Minimalist)";
-  const varietyLabel = stats.uniqueNotesCount > 10 ? "Very High (Experimental/Orchestral)" :
-                      stats.uniqueNotesCount > 4 ? "Good (Balanced)" : "Focused (Minimal)";
+  const intensityLabel = stats.intensity > 4 ? "High Energy" : 
+                        stats.intensity > 1.5 ? "Groovy" : "Chill";
 
-  const prompt = `Act as an encouraging music critic for a kid playing a paper ${stats.instrument}.
-  PERFORMANCE DATA:
-  - Duration: ${stats.durationSeconds}s
-  - Intensity: ${intensityLabel}
-  - Sound Variety: ${varietyLabel}
+  const prompt = `Act as an enthusiastic and professional Music Producer reviewing a young talent's ${stats.instrument} session. 
+  The session lasted ${stats.durationSeconds}s with a ${intensityLabel} vibe.
   
-  Return JSON with criticQuote, artistComparison, performanceStyle, and 3 recommendedSongs. Link to YouTube Music.`;
+  TASK:
+  - Create an encouraging, professional-sounding quote about their skill.
+  - Compare them to a COOL, CLEAN, and POPULAR artist (e.g., Taylor Swift, Ed Sheeran, Bruno Mars, Coldplay, Dua Lipa).
+  - Recommend 3 CLEAN (non-explicit) popular songs that have a similar vibe. These should be real radio hits, not nursery rhymes.
+  
+  Return JSON.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -129,38 +129,21 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
   return JSON.parse(response.text.trim());
 };
 
-export const generateMixSettings = async (events: PerformanceEvent[], instrument: string): Promise<{ 
-  mix: MixingPreset, 
-  genre: string, 
-  trackTitle: string,
-  extendedEventLog: PerformanceEvent[]
+export const generateMixSettings = async (eventLog: PerformanceEvent[], instrument: InstrumentType): Promise<{
+  genre: string;
+  trackTitle: string;
+  mix: MixingPreset;
+  extendedEventLog: PerformanceEvent[];
 }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const eventSummary = events.slice(0, 30).map(e => `${e.sound}@${Math.round(e.timestamp)}ms`).join(', ');
-
-  const prompt = `You are a world-class Music Producer and Orchestrator. 
-  The user performed on a paper ${instrument}. 
-  Rhythm/Style DNA: [${eventSummary}].
-  
-  TASK:
-  1. Identify a sophisticated Genre (e.g. Dream Pop, Lo-fi Hip Hop, Synthwave, Modern Jazz).
-  2. Orchestrate a FULL BAND 60-second arrangement (100-150 events).
-  3. SOUND PALETTE (Use these prefixes):
-     - drum: [kick, snare, hihat, crash_l, crash_r, tom_hi, tom_mid, tom_low]
-     - bass: [c1, cs1, d1, ds1, e1, f1, fs1, g1, gs1, a1, as1, b1, c2] (Deep bass)
-     - keys: [c4, d4, e4, f4, g4, a4, b4, c5] (Piano/Lead)
-     - pad: [c3, e3, g3, b3] (Atmospheric background chords)
-     
-  STRUCTURE:
-  - 0-15s: Build up (Atmospheric Pads + light percussion)
-  - 15-45s: Main Groove (Bassline + Full Drums + Chords)
-  - 45-60s: Climax and Outro.
-     
-  Return JSON with genre, trackTitle, mix settings, and the orchestrated event log "log" with objects {t: timestamp_ms, s: sound_id}.`;
-
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: prompt,
+    contents: `Analyze this performance sequence for a ${instrument}: ${JSON.stringify(eventLog.slice(0, 50))}.
+    Determine a professional-sounding genre. 
+    Create a COOL, ENERGETIC, and KID-SAFE track title (e.g., 'Neon Skyline', 'Electric Pulse', 'Solar Beat'). 
+    CRITICAL: AVOID anything dark, mature, or abstract (No 'Void', 'Shadows', 'Echoes', 'Darkness').
+    Suggest audio mixing settings.
+    Return JSON.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -180,28 +163,82 @@ export const generateMixSettings = async (events: PerformanceEvent[], instrument
             },
             required: ["reverbAmount", "compressionThreshold", "bassBoost", "midBoost", "trebleBoost", "distortionAmount"]
           },
-          log: {
+          extendedEventLog: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
-                t: { type: Type.NUMBER },
-                s: { type: Type.STRING }
+                timestamp: { type: Type.NUMBER },
+                sound: { type: Type.STRING }
               },
-              required: ["t", "s"]
+              required: ["timestamp", "sound"]
             }
           }
         },
-        required: ["genre", "trackTitle", "mix", "log"]
+        required: ["genre", "trackTitle", "mix", "extendedEventLog"]
       }
     }
   });
 
-  const raw = JSON.parse(response.text.trim());
-  return {
-    mix: raw.mix,
-    genre: raw.genre,
-    trackTitle: raw.trackTitle,
-    extendedEventLog: raw.log.map((e: any) => ({ timestamp: e.t, sound: e.s }))
-  };
+  return JSON.parse(response.text.trim());
 };
+
+/**
+ * GENERATE STUDIO MUSIC (Streaming Pipeline)
+ */
+export async function* generateStudioMusicStream(
+  recap: RecapData, 
+  stats: SessionStats, 
+  eventLog: PerformanceEvent[]
+): AsyncGenerator<string> {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  const script = eventLog
+    .slice(0, 80)
+    .map(e => `${Math.round(e.timestamp)}ms: ${e.sound}`)
+    .join(', ');
+
+  const prompt = `You are a Professional AI Studio Producer for young talent.
+  
+  TASK: Perform a 30-second High-Fidelity Studio Master of this performance score.
+  
+  SCORE: [${script}]
+  GENRE: ${recap.genre}
+  STYLE: Professional, Energetic, Bright
+  
+  PERFORMANCE RULES:
+  1. Follow the timing of the score exactly.
+  2. Use high-quality, professional instruments (Modern Synths, Crisp Percussion, Electric Bass).
+  3. The vibe should be upbeat and vibrant.
+  4. ABSOLUTELY NO dark, moody, or explicit tones.
+  
+  OUTPUT RULES:
+  - NO TALKING. NO SPEECH. 
+  - ONLY INSTRUMENTAL MUSIC.
+  - Start immediately.`;
+
+  try {
+    const result = await ai.models.generateContentStream({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' }
+          }
+        }
+      },
+    });
+
+    for await (const chunk of result) {
+      const audioData = chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (audioData) {
+        yield audioData;
+      }
+    }
+  } catch (err) {
+    console.error("Stream synthesis failed:", err);
+    throw err;
+  }
+}

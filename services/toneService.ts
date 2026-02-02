@@ -41,10 +41,15 @@ class ToneService {
 
       // Setup Master Chain
       this.masterEQ = new Tone.EQ3(0, 0, 0);
-      this.masterCompressor = new Tone.Compressor(-20, 3);
+      this.masterCompressor = new Tone.Compressor({
+        threshold: -24,
+        ratio: 4,
+        attack: 0.003,
+        release: 0.25
+      });
       this.masterDistortion = new Tone.Distortion(0);
       this.masterReverb = new Tone.Reverb({ decay: 2.0, wet: 0.1 });
-      this.masterLimiter = new Tone.Limiter(-1); // Prevent clipping with multiple tracks
+      this.masterLimiter = new Tone.Limiter(-1); 
       this.masterOutput = new Tone.Gain(1);
 
       this.masterEQ.chain(
@@ -84,7 +89,9 @@ class ToneService {
       this.tomLow = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 2.6 }).connect(output);
 
       // --- Melodic ---
+      // INCREASED POLYPHONY: Changed from default (usually 8-12) to 32 to handle rapid piano runs
       this.piano = new Tone.PolySynth(Tone.Synth, {
+        maxPolyphony: 32,
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
       }).connect(output);
@@ -95,10 +102,12 @@ class ToneService {
         filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.8, baseFrequency: 200, octaves: 2.6 }
       }).connect(output);
 
+      // ADDED POLYPHONY: Pads can now overlap smoothly
       this.padSynth = new Tone.PolySynth(Tone.Synth, {
+        maxPolyphony: 16,
         oscillator: { type: 'sine' },
         envelope: { attack: 0.5, decay: 0.5, sustain: 1, release: 2 }
-      }).connect(new Tone.Gain(0.3).connect(output)); // Pads are quieter by default
+      }).connect(new Tone.Gain(0.3).connect(output)); 
 
       this.recorder = new Tone.Recorder();
       this.masterOutput.connect(this.recorder);
@@ -116,7 +125,10 @@ class ToneService {
     this.scheduledEvents = [];
     
     [this.kick, this.snare, this.hihat, this.crash, this.tomHi, this.tomMid, this.tomLow, this.piano, this.bassSynth, this.padSynth].forEach(s => {
-       if (s) s.releaseAll ? s.releaseAll() : (s as any).triggerRelease ? (s as any).triggerRelease() : null;
+       if (s) {
+         if ("releaseAll" in s) (s as any).releaseAll();
+         else if ("triggerRelease" in s) (s as any).triggerRelease();
+       }
     });
   }
 
@@ -147,18 +159,15 @@ class ToneService {
     const triggerTime = time !== undefined ? time : Tone.now();
     const fullId = soundId.toLowerCase().trim();
     
-    // Split prefix if exists (e.g., "bass:c1")
     const parts = fullId.split(':');
     const prefix = parts.length > 1 ? parts[0] : null;
     const id = parts.length > 1 ? parts[1] : parts[0];
 
-    // Logging for recording
     if (time === undefined && this._recordingStart > 0) {
       this.eventLog.push({ timestamp: performance.now() - this._recordingStart, sound: fullId });
     }
 
     try {
-      // Routing Logic
       if (prefix === 'bass' || id.includes('bass')) {
         this.bassSynth?.triggerAttackRelease(this.parseNote(id), "4n", triggerTime);
       } else if (prefix === 'pad') {
@@ -174,7 +183,6 @@ class ToneService {
            else this.tomLow?.triggerAttackRelease(95, "16n", triggerTime);
         }
       } else {
-        // Default to Piano for everything else
         this.piano?.triggerAttackRelease(this.parseNote(id), '2n', triggerTime);
       }
     } catch (e) {

@@ -138,19 +138,25 @@ export const generateMixSettings = async (events: PerformanceEvent[], instrument
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const eventSummary = events.slice(0, 30).map(e => `${e.sound}@${Math.round(e.timestamp)}ms`).join(', ');
 
-  const prompt = `You are a professional Music Producer. 
-  The user played a ${instrument}. Their rhythm DNA (first 30 events): [${eventSummary}].
+  const prompt = `You are a world-class Music Producer and Orchestrator. 
+  The user performed on a paper ${instrument}. 
+  Rhythm/Style DNA: [${eventSummary}].
   
   TASK:
-  1. Identify Genre: Rock, Jazz, Ambient, or Chaos.
-  2. Define Mix: reverb, compression, bass, mid, treble, distortion.
-  3. CREATE A 60-SECOND STUDIO ARRANGEMENT:
-     - Based on the user's style, generate a sequence of EXACTLY 80-120 events.
-     - Spread these events over 60,000ms (60 seconds).
-     - Structure it: Intro (0-10s), Main Groove (10-45s), Outro/Big Finish (45-60s).
-     - Available sounds: ${instrument === 'Drum' ? 'kick, snare, hihat, crash_l, crash_r, tom_hi, tom_mid, tom_low' : 'c4, d4, e4, f4, g4, a4, b4, c5'}.
+  1. Identify a sophisticated Genre (e.g. Dream Pop, Lo-fi Hip Hop, Synthwave, Modern Jazz).
+  2. Orchestrate a FULL BAND 60-second arrangement (100-150 events).
+  3. SOUND PALETTE (Use these prefixes):
+     - drum: [kick, snare, hihat, crash_l, crash_r, tom_hi, tom_mid, tom_low]
+     - bass: [c1, cs1, d1, ds1, e1, f1, fs1, g1, gs1, a1, as1, b1, c2] (Deep bass)
+     - keys: [c4, d4, e4, f4, g4, a4, b4, c5] (Piano/Lead)
+     - pad: [c3, e3, g3, b3] (Atmospheric background chords)
      
-  Return JSON. For the log, use key "log" with objects {t: timestamp_ms, s: sound_id}.`;
+  STRUCTURE:
+  - 0-15s: Build up (Atmospheric Pads + light percussion)
+  - 15-45s: Main Groove (Bassline + Full Drums + Chords)
+  - 45-60s: Climax and Outro.
+     
+  Return JSON with genre, trackTitle, mix settings, and the orchestrated event log "log" with objects {t: timestamp_ms, s: sound_id}.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -179,8 +185,8 @@ export const generateMixSettings = async (events: PerformanceEvent[], instrument
             items: {
               type: Type.OBJECT,
               properties: {
-                t: { type: Type.NUMBER, description: "ms timestamp (0 to 60000)" },
-                s: { type: Type.STRING, description: "sound ID" }
+                t: { type: Type.NUMBER },
+                s: { type: Type.STRING }
               },
               required: ["t", "s"]
             }

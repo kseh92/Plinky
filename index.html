@@ -1,21 +1,94 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paper Instruments</title>
+    <title>Plinky: Doodle Symphony</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Quicksand', sans-serif;
-            background-color: #fdfaf3; /* Creamy paper color */
-            background-image: radial-gradient(#d6d3d1 0.5px, transparent 0.5px);
-            background-size: 20px 20px;
+            background-color: skyblue;
+            overflow-x: hidden;
         }
         h1, h2, h3 {
             font-family: 'Fredoka One', cursive;
+        }
+        .monster-bounce {
+            animation: bounce 4s infinite ease-in-out;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-20px) scale(1.02); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(25px, -35px) rotate(5deg); }
+            66% { transform: translate(-15px, 20px) rotate(-5deg); }
+        }
+        @keyframes drift {
+            0% { transform: translateX(-10vw) translateY(0) rotate(0deg); }
+            50% { transform: translateX(110vw) translateY(-10vh) rotate(180deg); }
+            100% { transform: translateX(-10vw) translateY(0) rotate(360deg); }
+        }
+        @keyframes wobble {
+            0%, 100% { transform: rotate(-8deg) scale(1); }
+            50% { transform: rotate(8deg) scale(1.1); }
+        }
+        @keyframes bg-gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        @keyframes orbit {
+            from { transform: rotate(0deg) translateX(100px) rotate(0deg); }
+            to { transform: rotate(360deg) translateX(100px) rotate(-360deg); }
+        }
+        .animate-float {
+            animation: float 12s infinite ease-in-out;
+        }
+        .animate-drift {
+            animation: drift 50s infinite linear;
+        }
+        .animate-wobble {
+            animation: wobble 6s infinite ease-in-out;
+        }
+        .animate-orbit {
+            animation: orbit 20s infinite linear;
+        }
+        .bg-animate {
+            background: linear-gradient(-45deg, #9ECAFF, #BAE6FD, #A5B4FC, #F9A8D4);
+            background-size: 400% 400%;
+            animation: bg-gradient 15s ease infinite;
+        }
+        .dot-grid {
+            background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1.5px, transparent 1.5px);
+            background-size: 40px 40px;
+        }
+        canvas {
+            touch-action: none;
+        }
+
+        /* Orientation Warning Overlay */
+        #orientation-warning {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background-color: #9ECAFF;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        /* Show warning in portrait ONLY when .needs-landscape class is present */
+        @media (orientation: portrait) and (max-width: 1024px) {
+            body.needs-landscape #orientation-warning {
+                display: flex;
+            }
         }
     </style>
 <script type="importmap">
@@ -26,13 +99,24 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "@google/genai": "https://esm.sh/@google/genai@^1.38.0",
     "tone": "https://esm.sh/tone@^15.1.22",
-    "@mediapipe/tasks-vision": "https://esm.sh/@mediapipe/tasks-vision@^0.10.32"
+    "@mediapipe/tasks-vision": "https://esm.sh/@mediapipe/tasks-vision@^0.10.32",
+    "path": "https://esm.sh/path@^0.12.7",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "url": "https://esm.sh/url@^0.11.4"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
 <body>
+    <!-- Persistent Orientation Message -->
+    <div id="orientation-warning">
+        <div class="monster-bounce mb-8" style="font-size: 6rem;">📱🔄</div>
+        <h2 style="font-family: 'Fredoka One'; color: white; font-size: 3rem; text-transform: uppercase; line-height: 1; margin-bottom: 1rem;">Rotate for Magic!</h2>
+        <p style="color: #1e3a8a; font-weight: 900; font-size: 1.2rem; text-transform: uppercase; letter-spacing: 0.1em;">Please hold your device horizontally</p>
+        <div class="mt-8 opacity-20" style="font-size: 3rem;">♪ ♫ ♬</div>
+    </div>
+
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
 </body>

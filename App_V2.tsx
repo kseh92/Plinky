@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent } from './services/types';
-import { INSTRUMENTS, PRESET_ZONES } from './services/constants';
+import { INSTRUMENTS, PRESET_ZONES, getInstrumentIcon } from './services/constants';
 import { generateBlueprint, scanDrawing } from './services/geminiService';
 import BlueprintDisplay from './components/BlueprintDisplay';
 import CameraScanner from './components/CameraScanner';
@@ -9,6 +9,7 @@ import ResultScreen from './components/ResultScreen';
 import GalleryPage from './components/GalleryPage';
 import SettingsPage from './components/SettingsPage';
 import YourJamPage from './components/YourJamPage';
+import ExplorePage from './components/ExplorePage';
 
 // --- Decorative Doodle Components ---
 
@@ -50,35 +51,98 @@ const BrownPianoDoodle: React.FC<{ className?: string; style?: React.CSSProperti
 
 const PurpleClusterDoodle: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
   <svg width="65" height="80" viewBox="0 0 65 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
-    <path d="M1.50049 17.6482C2.11037 19.5149 2.72026 21.3817 6.9987 29.5772C11.2771 37.7727 19.2057 52.2403 23.595 60.0433C29.1847 69.9802 30.4424 72.3223 31.2232 74.9139" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
-    <path d="M3.34863 15.5268C3.34863 15.0601 4.87335 13.6529 7.79341 11.7685C11.8636 9.14179 17.1912 10.1103 21.5066 9.63652" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M1.50049 17.6482C2.11037 19.5149 2.72026 21.3817 6.9987 29.5772C11.2771 37.7727 19.2057 52.2403 23.595 60.0433C29.1847 69.9802 30.4424 72.3223 31.2232 74.9139C31.3757 75.6246 31.6806 76.3246 32.1426 76.9186C32.6047 77.5126 33.2146 77.9793 33.8429 78.4601" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M3.34863 15.5268C3.34863 15.0601 4.87335 13.6529 7.79341 11.7685C11.8636 9.14179 17.1912 10.1103 21.5066 9.63652C25.3297 9.21681 30.4239 6.34844 37.8211 2.57598C40.1234 1.40183 44.2849 1.38449 49.2102 1.61783C51.1071 1.7077 51.696 2.31788 52.1626 2.90832C54.8451 6.30239 58.7374 12.9105 62.332 17.7471C65.9142 22.5671 60.3453 27.5336 57.878 30.0121C52.6067 35.3072 52.3243 44.264 51.4049 48.8602C50.2539 54.6139 50.1713 58.6538 50.1666 60.0645C50.1491 65.4191 62.7941 66.6654 62.6462 68.4296C62.309 72.4535 53.5811 71.8556 44.6592 73.2699C42.483 73.5103 40.9583 73.5103 39.7154 73.6269C38.4725 73.7436 37.5577 73.977 36.6151 74.2174" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M7.96875 19.0624C24.2786 16.941 29.8138 16.4743 37.5066 12.1255C39.4612 11.0207 41.8082 11.2841 43.3652 11.5174C45.9519 11.9051 47.9995 13.6317 49.8476 15.396C51.1592 16.648 50.171 18.3482 49.404 19.7589C47.6634 22.9605 44.3217 25.4122 42.3211 27.8907C37.5303 33.8256 41.8452 44.264 42.3118 49.8007C42.6438 53.7402 43.6933 56.5253 45.0794 59.8276C45.654 61.1965 47.3896 62.1893 48.3136 63.6C48.753 64.2707 48.6278 65.0107 48.1704 65.6047C46.0577 68.3482 41.8636 69.9605 38.3244 71.3854C36.0235 71.8556 33.8519 71.8627 32.1609 71.2758C31.3847 70.9222 30.7748 70.4555 29.2224 69.9747" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M16.2852 16.941C19.0481 29.8883 20.9055 35.5382 22.4395 40.1415C23.7923 44.2013 25.8216 50.8402 28.1364 55.7016C29.5271 58.8871 31.061 62.1823 32.5996 64.7703C33.2234 65.9583 33.5283 66.8917 33.8425 68.5605" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M29.2227 17.6482C29.5276 30.8359 30.1467 36.4716 31.9856 45.8974C35.6727 53.9161 40.3023 61.0085 41.9933 62.6561C42.7695 63.3703 43.3794 63.837 44.0078 65.0249" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M36.6152 14.1126C37.2251 14.1126 37.8442 14.8126 38.4588 16.2233C39.0733 17.634 39.9973 19.0553 41.0739 20.466C41.5405 21.1767 41.8455 21.8767 43.0837 22.598" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
+  </svg>
+);
+
+const CurvedLineDoodle: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
+  <svg width="279" height="81" viewBox="0 0 279 81" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+    <path d="M1 79.9992C43.6962 71.0328 86.3924 62.0664 114.262 50.0403C142.131 38.0142 153.88 23.2002 160.792 14.789C169.231 4.51901 173.773 2.43212 179.114 1.25078C181.855 0.64442 184.74 0.849122 196.532 5.1374C208.325 9.42568 228.956 18.0022 244.026 25.5392C259.096 33.0762 267.979 39.3137 278 48.1029" stroke="#161616" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
+const SmallCurvedDoodle: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
+  <svg width="74" height="120" viewBox="0 0 74 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+    <path d="M12.2287 15.3658C13.7339 25.7903 7.03886 49.6949 1.39971 68.7803C-0.650948 75.7207 5.39879 78.2276 14.7337 79.3734C55.3316 84.3565 64.621 78.2725 69.1143 77.1604C81.1359 74.1851 61.6554 46.8641 57.9259 25.5881C56.4344 17.0793 57.162 5.12097 54.5671 3.45844C33.7565 -9.87481 28.7641 34.777 21.2378 47.5156C12.6651 62.0252 10.7459 75.2171 9.61129 84.9788C8.55016 94.1088 6.25252 102.941 4.73602 111.939C4.34163 114.279 7.69039 116.421 11.8018 117.567C15.9132 118.713 21.8444 118.713 26.3827 111.669C33.8866 90.5393 39.1662 69.3533 43.2776 57.7604C45.1648 52.8402 46.6476 49.8746 50.422 42.3258" stroke="#121212" strokeWidth="2" strokeLinecap="round"/>
+  </svg>
+);
+
+// --- New Child-drawn Crayon Doodles ---
+
+const MessySun: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
+  <svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+    <circle cx="50" cy="50" r="20" stroke="#FDE047" strokeWidth="4" strokeLinecap="round" strokeDasharray="2 4"/>
+    <path d="M50 10V25M50 75V90M10 50H25M75 50H90M22 22L32 32M68 68L78 78M22 78L32 68M68 32L78 22" stroke="#FDE047" strokeWidth="4" strokeLinecap="round" />
+  </svg>
+);
+
+const ShakyStar: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
+  <svg width="60" height="60" viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+    <path d="M30 5L36 22H55L40 33L46 52L30 40L14 52L20 33L5 22H24L30 5Z" stroke="#F472B6" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+const CrayonSpiral: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
+  <svg width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+    <path d="M40 40C40 40 45 35 45 30C45 25 40 20 35 20C30 20 25 25 25 32C25 40 32 48 42 48C55 48 65 35 65 25C65 12 50 5 35 5C15 5 5 20 5 40C5 65 25 75 45 75C70 75 80 55 80 35" stroke="#A5B4FC" strokeWidth="4" strokeLinecap="round" />
+  </svg>
+);
+
+const ShakyHeart: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
+  <svg width="50" height="50" viewBox="0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+    <path d="M25 45C25 45 5 35 5 20C5 10 15 5 25 15C35 5 45 10 45 20C45 35 25 45 25 45Z" stroke="#FB923C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
 // --- Background Elements ---
 
 const BackgroundElements: React.FC = () => (
-  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-[#9ECAFF]">
-    <div className="absolute inset-0 dot-grid opacity-30" />
+  <div className="fixed inset-0 pointer-events-none overflow-hidden z-0 bg-animate">
+    <div className="absolute inset-0 dot-grid opacity-20" />
     
-    {/* Animated Blobs for Brighter Skyblue Atmosphere */}
-    <div className="absolute top-[-5%] left-[-10%] w-[60vw] h-[60vw] bg-white/20 rounded-full blur-[120px] animate-float" />
-    <div className="absolute bottom-[-10%] right-[-5%] w-[70vw] h-[70vw] bg-yellow-100/30 rounded-full blur-[150px] animate-float" style={{ animationDelay: '-4s' }} />
-    <div className="absolute top-1/3 right-[-10%] w-[45vw] h-[45vw] bg-pink-100/20 rounded-full blur-[100px] animate-pulse" />
+    {/* Large Dynamic Shifting Blobs */}
+    <div className="absolute top-[-10%] left-[-15%] w-[80vw] h-[80vw] bg-white/30 rounded-full blur-[140px] animate-float opacity-40" />
+    <div className="absolute bottom-[-15%] right-[-10%] w-[90vw] h-[90vw] bg-yellow-200/20 rounded-full blur-[160px] animate-float opacity-30" style={{ animationDelay: '-6s' }} />
+    <div className="absolute top-1/4 right-[-20%] w-[60vw] h-[60vw] bg-pink-200/20 rounded-full blur-[120px] animate-pulse opacity-40" />
+    <div className="absolute bottom-1/4 left-[-10%] w-[50vw] h-[50vw] bg-blue-200/20 rounded-full blur-[100px] animate-orbit opacity-30" />
 
-    {/* Small Scattered Confetti Particles */}
-    {[...Array(15)].map((_, i) => (
+    {/* Musical Notes Floating */}
+    {[...Array(8)].map((_, i) => (
       <div 
-        key={i} 
-        className="absolute rounded-full opacity-50 animate-float"
+        key={`note-${i}`} 
+        className="absolute text-white/20 select-none pointer-events-none animate-float"
         style={{
-          width: Math.random() * 30 + 10 + 'px',
-          height: Math.random() * 30 + 10 + 'px',
+          fontSize: Math.random() * 40 + 40 + 'px',
           left: Math.random() * 100 + '%',
           top: Math.random() * 100 + '%',
-          backgroundColor: ['#FFFFFF', '#FDE047', '#F472B6', '#4ADE80', '#FB923C'][i % 5],
-          animationDuration: (Math.random() * 12 + 6) + 's',
-          animationDelay: (Math.random() * -10) + 's'
+          animationDuration: (Math.random() * 15 + 10) + 's',
+          animationDelay: (Math.random() * -10) + 's',
+          transform: `rotate(${Math.random() * 360}deg)`
+        }}
+      >
+        {['♪', '♫', '♬', '♩'][i % 4]}
+      </div>
+    ))}
+
+    {/* Enhanced Scattered Confetti Particles */}
+    {[...Array(25)].map((_, i) => (
+      <div 
+        key={i} 
+        className="absolute rounded-full opacity-60 animate-float"
+        style={{
+          width: Math.random() * 40 + 10 + 'px',
+          height: Math.random() * 40 + 10 + 'px',
+          left: Math.random() * 100 + '%',
+          top: Math.random() * 100 + '%',
+          backgroundColor: ['#FFFFFF', '#FDE047', '#F472B6', '#4ADE80', '#FB923C', '#A5B4FC'][i % 6],
+          animationDuration: (Math.random() * 12 + 8) + 's',
+          animationDelay: (Math.random() * -15) + 's',
+          filter: 'blur(1px)'
         }}
       />
     ))}
@@ -112,7 +176,7 @@ const RedMonster: React.FC<{ className?: string }> = ({ className }) => (
       
       {/* Mouth (Multiple Jittery Strokes for Doodle Effect) */}
       <path d="M608.919 443.331C625.703 454.752 649.59 469.058 676.097 481.308C690.347 487.894 709.626 493.558 724.828 497.5C740.03 501.442 751.441 503.063 781.02 504.506C810.599 505.949 858 507.165 894.708 505.562C931.416 503.96 955.994 499.502 972.167 495.584C996.875 489.599 1013.13 478.195 1029.53 467.149" stroke="#FBD52C" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M612 446C630 458 655 472 680 484C715 500 750 508 785 508C820 508 865 508 900 506C935 504 960 499 975 496C1000 490 1015 480 1032 468" stroke="#FBD52C" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" transform="translate(2, 2)"/>
+      <path d="M612 446C630 458 655 472 680 484C715 500 750 508 785 508C820 508 865 508 900 506C935 504 960 499 975 496C1000 490 1015 480 1032 468" stroke="#FBD52C" strokeLinecap="round" strokeLinejoin="round" opacity="0.6" transform="translate(2, 2)"/>
       
       {/* Front Teeth - Jittery Doodle Boxes with White Fill */}
       <path d="M821.719 504.733C822.597 516.989 824.379 526.789 830.537 533.371C841.078 544.64 876.621 530.94 884.654 527.876C884.681 523.166 881.143 518.266 877.592 513.348C876.701 512.114 875.823 510.898 872.259 508.417" stroke="#FBD52C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
@@ -128,7 +192,7 @@ const GlobalHeader: React.FC<{ onHome: () => void; onStory: () => void; onGaller
     <nav className="flex items-center gap-6 md:gap-12 bg-white/20 backdrop-blur-md px-6 md:px-10 py-3 rounded-full border border-white/40 shadow-xl pointer-events-auto">
       <div 
         onClick={onHome} 
-        className="text-xl md:text-2xl font-black text-white cursor-pointer hover:scale-110 transition-transform drop-shadow-md select-none" 
+        className="text-xl md:text-2xl text-white font-black cursor-pointer hover:scale-110 transition-transform select-none drop-shadow-[0_2px_2px_rgba(0,0,0,0.1)]" 
         style={{ fontFamily: 'Fredoka One' }}
       >
         PLINKY
@@ -150,7 +214,7 @@ const GlobalHeader: React.FC<{ onHome: () => void; onStory: () => void; onGaller
           onClick={onGallery} 
           className={`hover:text-white transition-colors ${currentStep === 'gallery' ? 'text-white' : ''}`}
         >
-          Gallery
+          The Library
         </button>
         <button 
           onClick={onSettings}
@@ -231,7 +295,7 @@ const StoryPage: React.FC<{ onBack: () => void }> = ({ onBack }) => (
 // --- Main App Component ---
 
 const App: React.FC = () => {
-  const [step, setStep] = React.useState<'landing' | 'pick' | 'provide' | 'scan' | 'play' | 'result' | 'blueprint' | 'story' | 'gallery' | 'settings' | 'yourJam'>('landing');
+  const [step, setStep] = React.useState<'landing' | 'pick' | 'provide' | 'scan' | 'play' | 'result' | 'blueprint' | 'story' | 'gallery' | 'settings' | 'yourJam' | 'explore'>('landing');
   const [selectedType, setSelectedType] = React.useState<InstrumentType | null>(null);
   const [blueprint, setBlueprint] = React.useState<InstrumentBlueprint | null>(null);
   const [hitZones, setHitZones] = React.useState<HitZone[]>([]);
@@ -240,8 +304,27 @@ const App: React.FC = () => {
   const [error, setError] = React.useState<string | null>(null);
   const [sessionStats, setSessionStats] = React.useState<SessionStats | null>(null);
 
+  // Toggle orientation classes on the body based on the current step
+  useEffect(() => {
+    // Only screens that use the camera should enforce landscape mode
+    if (step === 'scan' || step === 'play') {
+      document.body.classList.add('needs-landscape');
+    } else {
+      document.body.classList.remove('needs-landscape');
+    }
+    // Cleanup on unmount
+    return () => {
+      document.body.classList.remove('needs-landscape');
+    };
+  }, [step]);
+
   const handlePick = (type: InstrumentType) => {
     setSelectedType(type);
+    setStep('provide');
+  };
+
+  const handleCreateCustom = (name: string) => {
+    setSelectedType(name);
     setStep('provide');
   };
 
@@ -262,7 +345,9 @@ const App: React.FC = () => {
 
   const handleQuickStart = () => {
     if (!selectedType) return;
-    setHitZones(PRESET_ZONES[selectedType]);
+    // For custom instruments, PRESET_ZONES might be empty, so we default to a generic set if needed or require scanning
+    const zones = PRESET_ZONES[selectedType] || PRESET_ZONES['Piano']; 
+    setHitZones(zones);
     setStep('play');
   };
 
@@ -307,27 +392,41 @@ const App: React.FC = () => {
       <GlobalHeader 
         onHome={goHome} 
         onStory={() => setStep('story')} 
-        onGallery={() => setStep('gallery')}
+        onGallery={() => { setStep('gallery'); }}
         onYourJam={() => setStep('yourJam')}
         onSettings={() => setStep('settings')}
         currentStep={step} 
       />
       
-      {/* Persistent Decorative Elements for landing, pick, result, story, gallery, settings, yourJam */}
-      {(step === 'landing' || step === 'pick' || step === 'result' || step === 'story' || step === 'gallery' || step === 'settings' || step === 'yourJam') && (
-        <div className="absolute inset-0 pointer-events-none z-10">
+      {/* Persistent Decorative Elements */}
+      {(step === 'landing' || step === 'pick' || step === 'result' || step === 'story' || step === 'gallery' || step === 'settings' || step === 'yourJam' || step === 'explore') && (
+        <div className="absolute inset-0 pointer-events-none z-30">
           <ScribbleDoodle className="absolute left-[5%] top-[12%] w-[180px] opacity-60 animate-float" style={{ animationDuration: '12s' }} />
           <WaveDoodle className="absolute right-[-10%] top-[10%] w-[600px] opacity-40 animate-drift" />
           <GreenPlantDoodle className="absolute left-[10%] bottom-[45%] w-[150px] opacity-80 animate-wobble" />
           <BrownPianoDoodle className="absolute right-[12%] bottom-[50%] w-[220px] opacity-70 rotate-[15deg] animate-float" />
           <PurpleClusterDoodle className="absolute left-[20%] top-[35%] w-[110px] opacity-70 animate-pulse" style={{ animationDuration: '4s' }} />
           <GreenPlantDoodle className="absolute right-[25%] top-[35%] w-[90px] opacity-40 -rotate-12 animate-float" />
+          
+          <MessySun className="absolute right-[5%] top-[5%] opacity-60 animate-pulse" />
+          <ShakyStar className="absolute left-[15%] top-[45%] opacity-50 animate-orbit" style={{ animationDuration: '15s' }} />
+          <CrayonSpiral className="absolute right-[10%] bottom-[15%] opacity-40 animate-float" style={{ animationDuration: '20s' }} />
+          <ShakyHeart className="absolute left-[8%] top-[25%] opacity-60 animate-wobble" />
+          <ShakyStar className="absolute right-[20%] top-[40%] opacity-40 rotate-45 animate-float" style={{ animationDuration: '10s' }} />
+          <MessySun className="absolute left-[5%] bottom-[5%] opacity-40 rotate-180 animate-pulse" style={{ animationDuration: '5s' }} />
+          <ShakyHeart className="absolute right-[25%] bottom-[30%] opacity-50 -rotate-12 animate-orbit" style={{ animationDuration: '25s' }} />
+          <CrayonSpiral className="absolute left-[30%] top-[10%] opacity-30 animate-drift" />
         </div>
       )}
 
       {step === 'landing' && (
         <div className="w-full min-h-screen flex flex-col items-center justify-between relative overflow-hidden">
-          <div className="h-4 md:h-12" /> {/* Top Spacer */}
+          <CurvedLineDoodle className="absolute left-[-5%] top-[30%] w-[500px] opacity-[0.07] -rotate-12 pointer-events-none z-0" />
+          <CurvedLineDoodle className="absolute right-[-10%] top-[60%] w-[600px] opacity-[0.05] rotate-[160deg] pointer-events-none z-0" />
+          <SmallCurvedDoodle className="absolute left-[12%] top-[5%] w-[100px] opacity-[0.12] rotate-12 pointer-events-none z-0" />
+          <SmallCurvedDoodle className="absolute right-[15%] top-[8%] w-[80px] opacity-[0.08] -rotate-[15deg] pointer-events-none z-0" />
+          
+          <div className="h-4 md:h-12" />
 
           <div className="relative z-50 flex flex-col items-center w-full px-6 pt-24">
             <div className="flex flex-col items-center pointer-events-none animate-in fade-in slide-in-from-bottom-10 duration-1000">
@@ -338,10 +437,10 @@ const App: React.FC = () => {
                 Doodle Symphony for Kids
               </p>
             </div>
-
+            
             <button
               onClick={() => setStep('pick')}
-              className="group relative bg-[#FF6B6B] text-white px-16 py-8 md:px-28 md:py-10 rounded-full text-5xl md:text-7xl font-black shadow-[0_15px_0_#D64545] hover:shadow-[0_8px_0_#D64545] hover:translate-y-2 active:shadow-none active:translate-y-[15px] transition-all duration-150 transform hover:scale-105 active:scale-95"
+              className="group relative bg-[#FF6B6B] text-white mt-12 px-16 py-8 md:px-28 md:py-10 rounded-full text-5xl md:text-7xl font-black shadow-[0_15px_0_#D64545] hover:shadow-[0_8px_0_#D64545] hover:translate-y-2 active:shadow-none active:translate-y-[15px] transition-all duration-150 transform hover:scale-105 active:scale-95"
             >
               START
               <div className="absolute -inset-8 bg-white/30 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -356,7 +455,7 @@ const App: React.FC = () => {
 
       {/* Main App Content Area */}
       <div className={`relative z-40 w-full flex flex-col items-center px-6 ${step === 'landing' ? 'hidden' : 'pt-32'}`}>
-        {step !== 'landing' && step !== 'story' && step !== 'gallery' && step !== 'settings' && step !== 'yourJam' && (
+        {step !== 'landing' && step !== 'story' && step !== 'gallery' && step !== 'settings' && step !== 'yourJam' && step !== 'explore' && (
           <header className="mb-8 text-center animate-in fade-in duration-500">
              <p className="text-[8px] md:text-[10px] font-black text-[#1e3a8a]/50 uppercase tracking-[0.4em]">Doodle Symphony for Kids</p>
           </header>
@@ -367,28 +466,45 @@ const App: React.FC = () => {
         )}
 
         {step === 'story' && (
-          <div className="w-full flex flex-col items-center pb-64 relative">
-             <StoryPage onBack={() => setStep('landing')} />
-             <div className="absolute bottom-0 left-0 right-0 h-[400px] overflow-hidden pointer-events-none z-0 translate-y-[20%] opacity-90 scale-110 origin-bottom">
+          <div className="w-full flex flex-col items-center pb-24 relative">
+             <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                <RedMonster className="w-full h-full" />
+             </div>
+             <div className="relative z-10 w-full flex justify-center">
+               <StoryPage onBack={() => setStep('landing')} />
              </div>
           </div>
         )}
 
         {step === 'gallery' && (
-          <div className="w-full flex flex-col items-center pb-64 relative">
-             <GalleryPage onBack={() => setStep('landing')} />
-             <div className="absolute bottom-0 left-0 right-0 h-[400px] overflow-hidden pointer-events-none z-0 translate-y-[20%] opacity-90 scale-110 origin-bottom">
+          <div className="w-full flex flex-col items-center pb-24 relative">
+             <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                <RedMonster className="w-full h-full" />
+             </div>
+             <div className="relative z-10 w-full flex justify-center">
+               <GalleryPage onBack={() => setStep('landing')} />
+             </div>
+          </div>
+        )}
+
+        {step === 'explore' && (
+          <div className="w-full flex flex-col items-center pb-24 relative">
+             <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+               <RedMonster className="w-full h-full" />
+             </div>
+             <div className="relative z-10 w-full flex justify-center">
+               <ExplorePage onBack={() => setStep('pick')} onCreateCustom={handleCreateCustom} />
              </div>
           </div>
         )}
 
         {step === 'yourJam' && (
-          <div className="w-full flex flex-col items-center pb-64 relative">
-             <YourJamPage onBack={() => setStep('landing')} />
-             <div className="absolute bottom-0 left-0 right-0 h-[400px] overflow-hidden pointer-events-none z-0 translate-y-[20%] opacity-90 scale-110 origin-bottom">
+          <div className="w-full flex flex-col items-center pb-24 relative">
+             <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                <RedMonster className="w-full h-full" />
+             </div>
+             <div className="relative z-10 w-full flex justify-center">
+               <YourJamPage onBack={() => setStep('landing')} />
              </div>
           </div>
         )}
@@ -404,21 +520,23 @@ const App: React.FC = () => {
 
         {step === 'pick' && (
           <div className="flex flex-col items-center w-full min-h-[calc(100vh-200px)] justify-start pb-48">
-            <div className="flex flex-wrap justify-center gap-10 w-full max-w-6xl py-12 animate-in slide-in-from-bottom-10 duration-700 relative z-50">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 w-full max-w-4xl py-12 animate-in slide-in-from-bottom-10 duration-700 relative z-50">
               {INSTRUMENTS.map((inst) => (
                 <button
                   key={inst.type}
                   onClick={() => handlePick(inst.type)}
-                  className={`${inst.color} p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center min-w-[280px] border-[12px] border-white/30 group`}
+                  className={`${inst.color} p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center border-[12px] border-white/30 group`}
                 >
-                  <span className="text-[120px] mb-6 drop-shadow-2xl group-hover:animate-wobble">{inst.icon}</span>
+                  <div className="w-40 h-40 mb-6 drop-shadow-2xl group-hover:animate-wobble">
+                    {inst.icon}
+                  </div>
                   <span className="text-4xl font-black text-white uppercase tracking-widest">{inst.type}</span>
                 </button>
               ))}
               
               <button
-                onClick={() => setStep('gallery')}
-                className={`bg-orange-400 p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center min-w-[280px] border-[12px] border-white/30 group`}
+                onClick={() => { setStep('explore'); }}
+                className={`bg-orange-400 p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center border-[12px] border-white/30 group`}
               >
                 <span className="text-[120px] mb-6 drop-shadow-2xl group-hover:animate-pulse">🧭</span>
                 <span className="text-4xl font-black text-white uppercase tracking-widest">Explore</span>
@@ -432,7 +550,16 @@ const App: React.FC = () => {
         )}
 
         {step === 'provide' && selectedType && (
-          <div className="flex flex-col items-center gap-12 py-12 animate-in fade-in duration-500">
+          <div className="flex flex-col items-center gap-12 py-12 animate-in fade-in duration-500 relative">
+            <button 
+              onClick={() => setStep('pick')}
+              className="bg-white/40 backdrop-blur-md text-[#1e3a8a] px-8 py-3 rounded-full font-black uppercase tracking-widest text-sm flex items-center gap-2 shadow-lg hover:scale-110 transition-transform border-4 border-white mb-2"
+            >
+              <span>←</span> Change Instrument
+            </button>
+            <div className="w-32 h-32 md:w-48 md:h-48 drop-shadow-2xl animate-wobble -mb-4">
+               {getInstrumentIcon(selectedType)}
+            </div>
             <h2 className="text-4xl md:text-6xl font-black text-white drop-shadow-xl uppercase tracking-tighter text-center">Choose Your Path: {selectedType}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-2xl">
               <button onClick={() => setStep('scan')} className="bg-white p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 hover:scale-110 transition-transform border-[8px] border-sky-200 group">
@@ -453,10 +580,12 @@ const App: React.FC = () => {
         {step === 'play' && hitZones.length > 0 && <InstrumentPlayer hitZones={hitZones} onExit={handleFinishedPlaying} />}
         
         {step === 'result' && (
-          <div className="w-full flex flex-col items-center pb-64 relative">
-             <ResultScreen recording={recording} onRestart={() => setStep('pick')} stats={sessionStats} />
-             <div className="absolute bottom-0 left-0 right-0 h-[400px] overflow-hidden pointer-events-none z-0 translate-y-[20%] opacity-90 scale-110 origin-bottom">
+          <div className="w-full flex flex-col items-center pb-24 relative">
+             <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                <RedMonster className="w-full h-full" />
+             </div>
+             <div className="relative z-10 w-full flex justify-center">
+               <ResultScreen recording={recording} onRestart={() => setStep('pick')} stats={sessionStats} />
              </div>
           </div>
         )}

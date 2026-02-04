@@ -257,7 +257,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
           {!hasStarted && !isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-blue-600/60 backdrop-blur-sm z-30 transition-all">
               <div className="text-center p-12 bg-white rounded-[4rem] shadow-2xl max-w-md mx-4 border-8 border-yellow-400">
-                <div className="text-6xl mb-4">{instrumentType === 'Harp' ? '✨' : '🎨'}</div>
+                <div className="text-6xl mb-4">{instrumentType === 'Harp' ? '🪕' : '🎨'}</div>
                 <h3 className="text-5xl font-black text-blue-600 mb-6 leading-tight uppercase">Ready to Play?</h3>
                 <p className="text-gray-600 mb-10 font-bold text-lg">Your {instrumentType} is ready. Touch the zones with your fingers!</p>
                 <button

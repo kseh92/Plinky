@@ -4,7 +4,7 @@ import { InstrumentType, HitZone } from './types';
 export const INSTRUMENTS: { type: InstrumentType; icon: string; color: string }[] = [
   { type: 'Piano', icon: '🎹', color: 'bg-blue-400' },
   { type: 'Drum', icon: '🥁', color: 'bg-red-400' },
-  { type: 'Harp', icon: '✨', color: 'bg-amber-400' },
+  { type: 'Harp', icon: '🪕', color: 'bg-amber-400' },
 ];
 
 // No external URLs used. Synthesis IDs used for internal routing.

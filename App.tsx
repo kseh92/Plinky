@@ -110,12 +110,12 @@ const App: React.FC = () => {
       )}
 
       {step === 'pick' && (
-        <div className="flex flex-wrap justify-center gap-8 w-full max-w-4xl">
+        <div className="flex flex-wrap md:flex-nowrap justify-center gap-8 w-full max-w-5xl">
           {INSTRUMENTS.map((inst) => (
             <button
               key={inst.type}
               onClick={() => handlePick(inst.type)}
-              className={`${inst.color} p-10 rounded-[3rem] shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-2 flex flex-col items-center min-w-[280px] flex-1 md:flex-initial`}
+              className={`${inst.color} p-10 rounded-[3rem] shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-2 flex flex-col items-center min-w-[220px] md:min-w-0 flex-1`}
             >
               <span className="text-7xl mb-4" role="img" aria-label={inst.type}>{inst.icon}</span>
               <span className="text-2xl font-bold text-white uppercase tracking-wider">{inst.type}</span>

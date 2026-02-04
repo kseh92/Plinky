@@ -201,8 +201,8 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {step === 'play' && hitZones.length > 0 && (
-        <InstrumentPlayer hitZones={hitZones} onExit={handleFinishedPlaying} />
+      {step === 'play' && hitZones.length > 0 && selectedType && (
+        <InstrumentPlayer instrumentType={selectedType} hitZones={hitZones} onExit={handleFinishedPlaying} />
       )}
 
       {step === 'result' && (

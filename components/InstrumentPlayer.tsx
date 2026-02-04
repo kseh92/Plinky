@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
-import { HitZone, PerformanceEvent } from '../types';
+import { HitZone, PerformanceEvent, InstrumentType } from '../types';
 import { toneService } from '../services/toneService';
 
 interface Particle {
@@ -15,11 +15,12 @@ interface Particle {
 }
 
 interface Props {
+  instrumentType: InstrumentType;
   hitZones: HitZone[];
   onExit: (recording: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number; eventLog: PerformanceEvent[] }) => void;
 }
 
-const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
+const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [landmarker, setLandmarker] = useState<HandLandmarker | null>(null);
@@ -82,10 +83,8 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
   const handleStart = async () => {
     setIsAudioLoading(true);
     await toneService.init(); 
-    // Apply a default "Pro" mixing preset on start
-    // Fix: Added missing distortionAmount to comply with MixingPreset type
     toneService.applyMixingPreset({
-      reverbAmount: 0.2,
+      reverbAmount: instrumentType === 'Harp' ? 0.4 : 0.2,
       compressionThreshold: -24,
       bassBoost: 2,
       midBoost: 0,
@@ -163,14 +162,16 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
 
           frameHits.forEach(sound => {
             if (!activeHitsRef.current.has(sound)) {
-              toneService.play(sound);
+              // PREVENTIVE FIX: Prefix sound with instrument name for clearer AI Studio context
+              const soundId = `${instrumentType.toLowerCase()}:${sound}`;
+              toneService.play(soundId, undefined, instrumentType);
               noteCountRef.current += 1;
-              uniqueNotesRef.current.add(sound);
+              uniqueNotesRef.current.add(soundId);
               const zone = hitZones.find(z => z.sound === sound);
               if (zone) {
                 const px = (zone.x + zone.width / 2) / 100 * canvasRef.current.width;
                 const py = (zone.y + zone.height / 2) / 100 * canvasRef.current.height;
-                spawnParticles(px, py, '#2563eb');
+                spawnParticles(px, py, instrumentType === 'Harp' ? '#fbbf24' : '#2563eb');
               }
             }
           });
@@ -200,13 +201,19 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
             const rectY = (zone.y / 100) * canvasRef.current.height;
             const rectW = (zone.width / 100) * canvasRef.current.width;
             const rectH = (zone.height / 100) * canvasRef.current.height;
-            ctx.fillStyle = isActive ? 'rgba(239, 68, 68, 0.5)' : 'rgba(59, 130, 246, 0.2)';
-            ctx.strokeStyle = isActive ? '#ef4444' : 'rgba(59, 130, 246, 0.6)';
-            ctx.lineWidth = isActive ? 10 : 4;
+            
+            const baseColor = instrumentType === 'Harp' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(59, 130, 246, 0.2)';
+            const activeColor = instrumentType === 'Harp' ? 'rgba(251, 191, 36, 0.6)' : 'rgba(239, 68, 68, 0.5)';
+            const strokeColor = instrumentType === 'Harp' ? '#fbbf24' : (isActive ? '#ef4444' : 'rgba(59, 130, 246, 0.6)');
+
+            ctx.fillStyle = isActive ? activeColor : baseColor;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = isActive ? 10 : (instrumentType === 'Harp' ? 2 : 4);
             ctx.lineJoin = 'round';
             ctx.strokeRect(rectX, rectY, rectW, rectH);
             ctx.fillRect(rectX, rectY, rectW, rectH);
-            ctx.fillStyle = isActive ? '#fff' : '#1e3a8a';
+            
+            ctx.fillStyle = isActive ? '#fff' : (instrumentType === 'Harp' ? '#92400e' : '#1e3a8a');
             ctx.font = 'bold 18px Fredoka One';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -219,7 +226,7 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
     };
     render();
     return () => cancelAnimationFrame(animationId);
-  }, [landmarker, hitZones, hasStarted]);
+  }, [landmarker, hitZones, hasStarted, instrumentType]);
 
   return (
     <div className="fixed inset-0 bg-stone-100 flex flex-col items-center justify-center z-50 overflow-hidden text-center">
@@ -250,15 +257,15 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
           {!hasStarted && !isLoading && (
             <div className="absolute inset-0 flex items-center justify-center bg-blue-600/60 backdrop-blur-sm z-30 transition-all">
               <div className="text-center p-12 bg-white rounded-[4rem] shadow-2xl max-w-md mx-4 border-8 border-yellow-400">
-                <div className="text-6xl mb-4">🎨</div>
-                <h3 className="text-5xl font-black text-blue-600 mb-6 leading-tight uppercase">Ready to Rock?</h3>
-                <p className="text-gray-600 mb-10 font-bold text-lg">Your drawing zones are mapped. Touch the squares with your fingers!</p>
+                <div className="text-6xl mb-4">{instrumentType === 'Harp' ? '✨' : '🎨'}</div>
+                <h3 className="text-5xl font-black text-blue-600 mb-6 leading-tight uppercase">Ready to Play?</h3>
+                <p className="text-gray-600 mb-10 font-bold text-lg">Your {instrumentType} is ready. Touch the zones with your fingers!</p>
                 <button
                   onClick={handleStart}
                   disabled={isAudioLoading}
                   className="w-full py-8 bg-red-500 hover:bg-red-600 text-white text-4xl font-black rounded-full shadow-[0_10px_0_rgb(185,28,28)] transition-all active:translate-y-2 active:shadow-none"
                 >
-                  {isAudioLoading ? 'Warming up...' : 'LET\'S ROCK!'}
+                  {isAudioLoading ? 'Warming up...' : 'LET\'S PLAY!'}
                 </button>
               </div>
             </div>
@@ -270,7 +277,7 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
               onClick={handleStop}
               className="flex-1 max-w-[200px] py-4 bg-white text-red-600 border-4 border-red-600 rounded-full font-black text-lg shadow-xl hover:bg-red-50 transition-all active:scale-95"
             >
-              ⏹️ FINISH SHOW
+              ⏹️ FINISH SESSION
             </button>
           </div>
         )}

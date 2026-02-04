@@ -1,6 +1,6 @@
 
 import * as Tone from 'tone';
-import { MixingPreset, PerformanceEvent } from '../types';
+import { MixingPreset, PerformanceEvent } from '../types_V2';
 
 class ToneService {
   // Synthesized Engines

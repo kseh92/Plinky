@@ -1,5 +1,5 @@
 import React from 'react';
-import { InstrumentType, HitZone } from './types';
+import { InstrumentType, HitZone } from './types_V2';
 
 // --- Doodle Icons ---
 

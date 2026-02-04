@@ -1,5 +1,5 @@
 import * as Tone from 'tone';
-import { PerformanceEvent, MixingPreset } from './types';
+import { PerformanceEvent, MixingPreset } from './types_V2';
 
 class ToneService {
   private initialized = false;

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types";
+import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
 
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });

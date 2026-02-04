@@ -4,8 +4,8 @@ import { INSTRUMENTS, PRESET_ZONES, getInstrumentIcon } from './services/constan
 import { generateBlueprint, scanDrawing } from './services/geminiService';
 import BlueprintDisplay from './components/BlueprintDisplay';
 import CameraScanner from './components/CameraScanner';
-import InstrumentPlayer from './components/InstrumentPlayer';
-import ResultScreen from './components/ResultScreen';
+import InstrumentPlayer from './components/InstrumentPlayer_V2';
+import ResultScreen from './components/ResultScreen_V2';
 import GalleryPage from './components/GalleryPage';
 import SettingsPage from './components/SettingsPage';
 import YourJamPage from './components/YourJamPage';

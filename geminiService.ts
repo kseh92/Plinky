@@ -9,6 +9,7 @@ export const generateBlueprint = async (instrument: InstrumentType): Promise<Ins
     contents: `Create a "blueprint" for a hand-drawn ${instrument}. 
     Drum parts: kick, snare, hihat, crash, high tom, mid tom, floor tom.
     Piano notes: c4, d4, e4, f4, g4, a4, b4, c5.
+    Harp strings: c4, d4, e4, f4, g4, a4, b4, c5, d5, e5, f5, g5.
     Return JSON.`,
     config: {
       responseMimeType: "application/json",
@@ -49,7 +50,11 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
   const pianoPrompt = `Detect ALL individual keys in this piano drawing (both white and black/sharps).
     Identify keys from left to right. Provide accurate bounding boxes. Return JSON.`;
   const drumPrompt = `Analyze this hand-drawn drum kit. Identify kick, snare, toms, hi-hat, and crash. Return JSON.`;
-  const prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
+  const harpPrompt = `Analyze this hand-drawn harp. Identify individual vertical strings (C, D, E, F, G, A, B).
+    Strings should be vertical boxes. Return JSON.`;
+  
+  let prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
+  if (instrument === 'Harp') prompt = harpPrompt;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -92,8 +97,8 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
   
   TASK:
   - Create an encouraging, professional-sounding quote about their skill.
-  - Compare them to a COOL, CLEAN, and POPULAR artist (e.g., Taylor Swift, Ed Sheeran, Bruno Mars, Coldplay, Dua Lipa).
-  - Recommend 3 CLEAN (non-explicit) popular songs that have a similar vibe. These should be real radio hits, not nursery rhymes.
+  - Compare them to a COOL, CLEAN, and POPULAR artist (e.g., Taylor Swift, Ed Sheeran, Bruno Mars, Coldplay, Dua Lipa, or a famous instrumentalist).
+  - Recommend 3 CLEAN (non-explicit) popular songs that have a similar vibe. These should be real radio hits.
   
   Return JSON.`;
 
@@ -193,29 +198,18 @@ export async function* generateStudioMusicStream(
 ): AsyncGenerator<string> {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
+  // Limiting event log even further and simplifying labels to reduce TTS "complexity" error risk.
   const script = eventLog
-    .slice(0, 80)
-    .map(e => `${Math.round(e.timestamp)}ms: ${e.sound}`)
-    .join(', ');
+    .slice(0, 45) // Reduced from 80 to 45
+    .map(e => `${Math.round(e.timestamp)}ms:${e.sound.split(':')[1] || e.sound}`)
+    .join(' ');
 
-  const prompt = `You are a Professional AI Studio Producer for young talent.
+  const prompt = `Perform this musical score as high-fidelity audio:
+  Instrument: ${stats.instrument}
+  Genre: ${recap.genre}
+  Score: ${script}
   
-  TASK: Perform a 30-second High-Fidelity Studio Master of this performance score.
-  
-  SCORE: [${script}]
-  GENRE: ${recap.genre}
-  STYLE: Professional, Energetic, Bright
-  
-  PERFORMANCE RULES:
-  1. Follow the timing of the score exactly.
-  2. Use high-quality, professional instruments (Modern Synths, Crisp Percussion, Electric Bass).
-  3. The vibe should be upbeat and vibrant.
-  4. ABSOLUTELY NO dark, moody, or explicit tones.
-  
-  OUTPUT RULES:
-  - NO TALKING. NO SPEECH. 
-  - ONLY INSTRUMENTAL MUSIC.
-  - Start immediately.`;
+  Style: Upbeat, Professional, Studio-quality. No talking. Start audio immediately.`;
 
   try {
     const result = await ai.models.generateContentStream({
@@ -238,7 +232,7 @@ export async function* generateStudioMusicStream(
       }
     }
   } catch (err) {
-    console.error("Stream synthesis failed:", err);
+    console.error("Studio stream generation failed:", err);
     throw err;
   }
 }

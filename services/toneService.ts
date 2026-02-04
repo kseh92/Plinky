@@ -1,6 +1,6 @@
 
 import * as Tone from 'tone';
-import { MixingPreset, PerformanceEvent } from '../types';
+import { MixingPreset, PerformanceEvent, InstrumentType } from '../types';
 
 class ToneService {
   // Drum Engines
@@ -14,6 +14,7 @@ class ToneService {
   
   // Melodic Engines
   private piano: Tone.PolySynth | null = null;
+  private harp: Tone.PolySynth | null = null;
   private bassSynth: Tone.MonoSynth | null = null;
   private padSynth: Tone.PolySynth | null = null;
 
@@ -48,7 +49,7 @@ class ToneService {
         release: 0.25
       });
       this.masterDistortion = new Tone.Distortion(0);
-      this.masterReverb = new Tone.Reverb({ decay: 2.0, wet: 0.1 });
+      this.masterReverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 });
       this.masterLimiter = new Tone.Limiter(-1); 
       this.masterOutput = new Tone.Gain(1);
 
@@ -89,12 +90,23 @@ class ToneService {
       this.tomLow = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 2.6 }).connect(output);
 
       // --- Melodic ---
-      // INCREASED POLYPHONY: Changed from default (usually 8-12) to 32 to handle rapid piano runs
+      // Tone.PolySynth requires a Monophonic class (Synth, FMSynth, AMSynth, etc.)
+      // PluckSynth is often not compatible with PolySynth in some Tone.js versions.
+      // We use FMSynth with plucky settings to simulate a Harp effectively.
       this.piano = new Tone.PolySynth(Tone.Synth, {
-        maxPolyphony: 32,
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
       }).connect(output);
+      this.piano.maxPolyphony = 32;
+
+      this.harp = new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 2,
+        modulationIndex: 7,
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 0.4, sustain: 0.1, release: 1.8 },
+        modulationEnvelope: { attack: 0.002, decay: 0.2, sustain: 0, release: 0.2 }
+      }).connect(output);
+      this.harp.maxPolyphony = 48; // Harps need lots of ringing polyphony
 
       this.bassSynth = new Tone.MonoSynth({
         oscillator: { type: 'fmsquare' },
@@ -102,12 +114,11 @@ class ToneService {
         filterEnvelope: { attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.8, baseFrequency: 200, octaves: 2.6 }
       }).connect(output);
 
-      // ADDED POLYPHONY: Pads can now overlap smoothly
       this.padSynth = new Tone.PolySynth(Tone.Synth, {
-        maxPolyphony: 16,
         oscillator: { type: 'sine' },
         envelope: { attack: 0.5, decay: 0.5, sustain: 1, release: 2 }
       }).connect(new Tone.Gain(0.3).connect(output)); 
+      this.padSynth.maxPolyphony = 16;
 
       this.recorder = new Tone.Recorder();
       this.masterOutput.connect(this.recorder);
@@ -124,7 +135,7 @@ class ToneService {
     this.scheduledEvents.forEach(id => Tone.getTransport().clear(id));
     this.scheduledEvents = [];
     
-    [this.kick, this.snare, this.hihat, this.crash, this.tomHi, this.tomMid, this.tomLow, this.piano, this.bassSynth, this.padSynth].forEach(s => {
+    [this.kick, this.snare, this.hihat, this.crash, this.tomHi, this.tomMid, this.tomLow, this.piano, this.harp, this.bassSynth, this.padSynth].forEach(s => {
        if (s) {
          if ("releaseAll" in s) (s as any).releaseAll();
          else if ("triggerRelease" in s) (s as any).triggerRelease();
@@ -150,11 +161,12 @@ class ToneService {
       'c3': 'C3', 'cs3': 'C#3', 'd3': 'D3', 'ds3': 'D#3', 'e3': 'E3', 'f3': 'F3', 'fs3': 'F#3', 'g3': 'G3', 'gs3': 'G#3', 'a3': 'A3', 'as3': 'A#3', 'b3': 'B3',
       'c4': 'C4', 'cs4': 'C#4', 'd4': 'D4', 'ds4': 'D#4', 'e4': 'E4', 'f4': 'F4', 'fs4': 'F#4', 'g4': 'G4', 'gs4': 'G#4', 'a4': 'A4', 'as4': 'A#4', 'b4': 'B4',
       'c5': 'C5', 'cs5': 'C#5', 'd5': 'D5', 'ds5': 'D#5', 'e5': 'E5', 'f5': 'F5', 'fs5': 'F#5', 'g5': 'G5', 'gs5': 'G#5', 'a5': 'A5', 'as5': 'A#5', 'b5': 'B5',
+      'c6': 'C6', 'd6': 'D6', 'e6': 'E6', 'f6': 'F6', 'g6': 'G6'
     };
     return noteMap[note.toLowerCase()] || note.toUpperCase();
   }
 
-  play(soundId: string | undefined | null, time?: number) {
+  play(soundId: string | undefined | null, time?: number, currentInstrument?: InstrumentType) {
     if (!this.initialized || !soundId) return;
     const triggerTime = time !== undefined ? time : Tone.now();
     const fullId = soundId.toLowerCase().trim();
@@ -172,6 +184,9 @@ class ToneService {
         this.bassSynth?.triggerAttackRelease(this.parseNote(id), "4n", triggerTime);
       } else if (prefix === 'pad') {
         this.padSynth?.triggerAttackRelease(this.parseNote(id), "1n", triggerTime);
+      } else if (currentInstrument === 'Harp' || id.startsWith('harp_')) {
+        // Use triggerAttackRelease for PolySynths to ensure cleanup, even with long release.
+        this.harp?.triggerAttackRelease(this.parseNote(id.replace('harp_', '')), "1n", triggerTime);
       } else if (prefix === 'drum' || id.includes('kick') || id.includes('snare') || id.includes('hihat') || id.includes('crash') || id.includes('tom')) {
         if (id.includes('kick')) this.kick?.triggerAttackRelease("C1", "8n", triggerTime);
         else if (id.includes('snare')) this.snare?.triggerAttackRelease("16n", triggerTime);

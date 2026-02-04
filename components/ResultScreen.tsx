@@ -120,7 +120,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     if (!recap || !stats) return;
     
     setIsGeneratingMusic(true);
-    setGenerationProgress(0);
+    setGenerationProgress(10); 
     setHasFinishedGeneration(false);
     collectedAudioChunksRef.current = [];
     fullAudioBufferRef.current = null;
@@ -137,8 +137,11 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       let chunksReceived = 0;
       
       for await (const chunkBase64 of stream) {
+        if (!chunkBase64) continue;
         chunksReceived++;
-        setGenerationProgress(Math.min(99, Math.round((chunksReceived / 40) * 100)));
+        
+        const progress = Math.min(99, 10 + Math.round((chunksReceived / 25) * 90));
+        setGenerationProgress(progress);
         
         const { buffer, raw } = await decodeBase64ToAudioBuffer(chunkBase64, audioContextRef.current);
         collectedAudioChunksRef.current.push(raw);
@@ -161,10 +164,21 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         }
         fullAudioBufferRef.current = mergedBuffer;
       }
-    } catch (err) {
-      console.error("Streaming failed", err);
-      alert("The AI Studio is resetting. Let's try again!");
+    } catch (err: any) {
+      console.error("Streaming failed:", err);
+      // More descriptive error handling
+      const errorMsg = err?.message || "Internal Production Error";
+      console.warn("Retrying simple rendering due to:", errorMsg);
+      
+      // Clear states to allow user to retry or just show current progress as failure
+      setIsGeneratingMusic(false);
       setIsPlayingAiMusic(false);
+      setGenerationProgress(0);
+      setHasFinishedGeneration(false);
+      
+      if (errorMsg.includes("CANCELLED") || errorMsg.includes("INTERNAL")) {
+         alert("The Studio Suite is busy. Please try generating your hit again in a moment!");
+      }
     } finally {
       setIsGeneratingMusic(false);
     }
@@ -325,8 +339,8 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
                       >
                         <span className="text-4xl">{isPlayingAiMusic ? '⏹️' : '▶️'}</span>
                       </button>
-                      <span className="text-[10px] font-black text-yellow-300 uppercase tracking-widest">
-                        {isGeneratingMusic ? `PROCESSING... ${generationProgress}%` : isPlayingAiMusic ? 'NOW PLAYING' : 'PLAY HIT'}
+                      <span className="text-[10px] font-black text-yellow-300 uppercase tracking-widest text-center px-1">
+                        {isGeneratingMusic ? `MASTERING... ${generationProgress}%` : isPlayingAiMusic ? 'NOW PLAYING' : 'PLAY HIT'}
                       </span>
                     </div>
 
@@ -341,8 +355,8 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
                     </div>
                   </div>
                   
-                  <div className="text-center">
-                    <p className="text-yellow-500 font-bold tracking-tight uppercase">HIT SINGLE: {recap?.trackTitle}</p>
+                  <div className="text-center px-4">
+                    <p className="text-yellow-500 font-bold tracking-tight uppercase truncate max-w-xs mx-auto">HIT SINGLE: {recap?.trackTitle}</p>
                     <p className="text-yellow-400/40 text-[9px] font-black uppercase tracking-[0.2em] mt-1">AI Orchestration & Studio Mastering</p>
                   </div>
 

@@ -1,5 +1,5 @@
 
-export type InstrumentType = 'Drum' | 'Piano' | 'Guitar';
+export type InstrumentType = 'Drum' | 'Piano' | 'Guitar' | 'Harp';
 
 export interface PerformanceEvent {
   timestamp: number; // ms relative to recording start

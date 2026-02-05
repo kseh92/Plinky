@@ -1,6 +1,6 @@
 
-import { GoogleGenAI, Modality, Type, GenerateContentResponse } from "@google/genai";
-import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, PerformanceEvent, MixingPreset } from "./types";
+import { GoogleGenAI, Type } from "@google/genai";
+import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
 
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -8,7 +8,7 @@ export const generateBlueprint = async (instrument: InstrumentType): Promise<Ins
     model: "gemini-3-flash-preview",
     contents: `Create a "blueprint" for a hand-drawn ${instrument}. 
     Drum parts: kick, snare, hihat, crash, high tom, mid tom, floor tom.
-    Piano notes: c4, d4, e4, f4, g4, a4, b4, c5.
+    Piano notes: c4, d4, e4, f4, g4, a4, b4, c5. Use '#' for sharps if needed (e.g. c#4).
     Harp strings: c4, d4, e4, f4, g4, a4, b4, c5, d5, e5, f5, g5.
     Return JSON.`,
     config: {
@@ -48,11 +48,11 @@ export const generateBlueprint = async (instrument: InstrumentType): Promise<Ins
 export const scanDrawing = async (instrument: InstrumentType, base64Image: string): Promise<HitZone[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const pianoPrompt = `Detect ALL individual keys in this piano drawing (both white and black/sharps).
-    Identify keys from left to right. Provide accurate bounding boxes. Return JSON.`;
+    Identify keys from left to right. Use standard note names (c4, c#4, d4, d#4, etc.).
+    Provide accurate bounding boxes. Return JSON.`;
   const drumPrompt = `Analyze this hand-drawn drum kit. Identify kick, snare, toms, hi-hat, and crash. Return JSON.`;
   const harpPrompt = `Analyze this hand-drawn harp. Identify individual vertical strings (C, D, E, F, G, A, B).
     Strings should be vertical boxes. Return JSON.`;
-  
   let prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
   if (instrument === 'Harp') prompt = harpPrompt;
 
@@ -89,23 +89,27 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
 
 export const generateSessionRecap = async (stats: SessionStats): Promise<RecapData> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  const intensityLabel = stats.intensity > 4 ? "High Energy" : 
-                        stats.intensity > 1.5 ? "Groovy" : "Chill";
+  const intensityLabel = stats.intensity > 4 ? "Extremely High (Shredding/Rapid)" : 
+                        stats.intensity > 1.5 ? "Moderate (Groovy/Rhythmic)" : "Low (Calm/Minimalist)";
+  const varietyLabel = stats.uniqueNotesCount > 10 ? "Very High (Experimental/Orchestral)" :
+                      stats.uniqueNotesCount > 4 ? "Good (Balanced)" : "Focused (Minimal)";
 
-  const prompt = `Act as an enthusiastic and professional Music Producer reviewing a young talent's ${stats.instrument} session. 
-  The session lasted ${stats.durationSeconds}s with a ${intensityLabel} vibe.
+  const prompt = `Use Google Search Grounding to act as an encouraging music critic for a kid playing a paper ${stats.instrument}.
+  PERFORMANCE DATA:
+  - Duration: ${stats.durationSeconds}s
+  - Intensity: ${intensityLabel}
+  - Sound Variety: ${varietyLabel}
   
   TASK:
-  - Create an encouraging, professional-sounding quote about their skill.
-  - Compare them to a COOL, CLEAN, and POPULAR artist (e.g., Taylor Swift, Ed Sheeran, Bruno Mars, Coldplay, Dua Lipa, or a famous instrumentalist).
-  - Recommend 3 CLEAN (non-explicit) popular songs that have a similar vibe. These should be real radio hits.
-  
-  Return JSON.`;
+  1. Find 3 REAL, popular songs on YouTube Music that match this vibe.
+  2. For each song, get the EXACT YouTube Music URL and the REAL high-quality album art cover URL.
+  3. Return a valid JSON object with: criticQuote, artistComparison, performanceStyle, and recommendedSongs.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: prompt,
     config: {
+      tools: [{ googleSearch: {} }],
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -120,9 +124,10 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
               properties: {
                 title: { type: Type.STRING },
                 artist: { type: Type.STRING },
-                youtubeMusicUrl: { type: Type.STRING }
+                youtubeMusicUrl: { type: Type.STRING },
+                coverImageUrl: { type: Type.STRING }
               },
-              required: ["title", "artist", "youtubeMusicUrl"]
+              required: ["title", "artist", "youtubeMusicUrl", "coverImageUrl"]
             }
           }
         },
@@ -131,8 +136,65 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
     }
   });
 
-  return JSON.parse(response.text.trim());
+  const recap = JSON.parse(response.text.trim());
+  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
+  if (groundingChunks) {
+    recap.groundingChunks = groundingChunks;
+  }
+
+  return recap;
 };
+
+export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `Analyze this performance sequence for a ${instrument}: ${JSON.stringify(eventLog.slice(0, 50))}.
+    Determine a professional-sounding genre. 
+    Create a COOL, ENERGETIC, and KID-SAFE track title (e.g., 'Neon Skyline', 'Electric Pulse', 'Solar Beat'). 
+    CRITICAL: AVOID anything dark, mature, or abstract (No 'Void', 'Shadows', 'Echoes', 'Darkness').
+    Suggest audio mixing settings.
+    Return JSON.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          genre: { type: Type.STRING },
+          trackTitle: { type: Type.STRING },
+          mix: {
+            type: Type.OBJECT,
+            properties: {
+              reverbAmount: { type: Type.NUMBER },
+              compressionThreshold: { type: Type.NUMBER },
+              bassBoost: { type: Type.NUMBER },
+              midBoost: { type: Type.NUMBER },
+              trebleBoost: { type: Type.NUMBER },
+              distortionAmount: { type: Type.NUMBER }
+            },
+            required: ["reverbAmount", "compressionThreshold", "bassBoost", "midBoost", "trebleBoost", "distortionAmount"]
+          },
+          extendedEventLog: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                timestamp: { type: Type.NUMBER },
+                sound: { type: Type.STRING }
+              },
+              required: ["timestamp", "sound"]
+            }
+          }
+        },
+        required: ["genre", "trackTitle", "mix", "extendedEventLog"]
+      }
+    }
+  });
+
+  const raw = JSON.parse(response.text.trim());
+};
+
+
 
 export const generateMixSettings = async (eventLog: PerformanceEvent[], instrument: InstrumentType): Promise<{
   genre: string;

@@ -1,5 +1,5 @@
 
-export type InstrumentType = 'Drum' | 'Piano' | 'Guitar' | 'Harp';
+export type InstrumentType = 'Drum' | 'Piano' | 'Guitar' | 'Harp' | string;
 
 export interface PerformanceEvent {
   timestamp: number; // ms relative to recording start
@@ -55,6 +55,7 @@ export interface RecommendedTrack {
   title: string;
   artist: string;
   youtubeMusicUrl: string;
+  coverImageUrl: string;
 }
 
 export interface RecapData {
@@ -66,4 +67,6 @@ export interface RecapData {
   genre?: string;
   trackTitle?: string;
   extendedEventLog?: PerformanceEvent[];
+  groundingChunks?: any[]; // For Google Search citations
+  personalJacketUrl?: string; // AI Generated album cover for the child
 }

@@ -1,5 +1,5 @@
 {
-  "name": "Paper Instruments",
+  "name": " Plinky:Doodle Symphony for Kids",
   "description": "An interactive educational app that turns hand-drawn sketches into playable musical instruments using AI and real-time hand tracking.",
   "requestFramePermissions": [
     "camera"

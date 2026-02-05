@@ -1,6 +1,6 @@
 
 import * as Tone from 'tone';
-import { MixingPreset, PerformanceEvent, InstrumentType } from '../types';
+import { MixingPreset, PerformanceEvent, InstrumentType } from './types';
 
 class ToneService {
   // Drum Engines

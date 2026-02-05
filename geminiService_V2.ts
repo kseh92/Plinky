@@ -195,6 +195,61 @@ export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData)
 };
 
 
+
+export const generateMixSettings = async (eventLog: PerformanceEvent[], instrument: InstrumentType): Promise<{
+  genre: string;
+  trackTitle: string;
+  mix: MixingPreset;
+  extendedEventLog: PerformanceEvent[];
+}> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: `Analyze this performance sequence for a ${instrument}: ${JSON.stringify(eventLog.slice(0, 50))}.
+    Determine a professional-sounding genre. 
+    Create a COOL, ENERGETIC, and KID-SAFE track title (e.g., 'Neon Skyline', 'Electric Pulse', 'Solar Beat'). 
+    CRITICAL: AVOID anything dark, mature, or abstract (No 'Void', 'Shadows', 'Echoes', 'Darkness').
+    Suggest audio mixing settings.
+    Return JSON.`,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          genre: { type: Type.STRING },
+          trackTitle: { type: Type.STRING },
+          mix: {
+            type: Type.OBJECT,
+            properties: {
+              reverbAmount: { type: Type.NUMBER },
+              compressionThreshold: { type: Type.NUMBER },
+              bassBoost: { type: Type.NUMBER },
+              midBoost: { type: Type.NUMBER },
+              trebleBoost: { type: Type.NUMBER },
+              distortionAmount: { type: Type.NUMBER }
+            },
+            required: ["reverbAmount", "compressionThreshold", "bassBoost", "midBoost", "trebleBoost", "distortionAmount"]
+          },
+          extendedEventLog: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                timestamp: { type: Type.NUMBER },
+                sound: { type: Type.STRING }
+              },
+              required: ["timestamp", "sound"]
+            }
+          }
+        },
+        required: ["genre", "trackTitle", "mix", "extendedEventLog"]
+      }
+    }
+  });
+
+  return JSON.parse(response.text.trim());
+};
+
 /**
  * GENERATE STUDIO MUSIC (Streaming Pipeline)
  */

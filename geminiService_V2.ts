@@ -1,16 +1,9 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
 
-const getApiKey = () => {
-  const key = import.meta?.env?.GEMINI_API_KEY as string | undefined;
-  if (!key) {
-    throw new Error("Missing GEMINI_API_KEY. Set it in your environment and restart the dev server.");
-  }
-  return key;
-};
-
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Create a "blueprint" for a hand-drawn ${instrument}. 
@@ -53,7 +46,7 @@ export const generateBlueprint = async (instrument: InstrumentType): Promise<Ins
 };
 
 export const scanDrawing = async (instrument: InstrumentType, base64Image: string): Promise<HitZone[]> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const pianoPrompt = `Detect ALL individual keys in this piano drawing (both white and black/sharps).
     Identify keys from left to right. Use standard note names (c4, c#4, d4, d#4, etc.).
     Provide accurate bounding boxes. Return JSON.`;
@@ -95,7 +88,7 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
 };
 
 export const generateSessionRecap = async (stats: SessionStats): Promise<RecapData> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const intensityLabel = stats.intensity > 4 ? "Extremely High (Shredding/Rapid)" : 
                         stats.intensity > 1.5 ? "Moderate (Groovy/Rhythmic)" : "Low (Calm/Minimalist)";
   const varietyLabel = stats.uniqueNotesCount > 10 ? "Very High (Experimental/Orchestral)" :
@@ -153,57 +146,15 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
 };
 
 export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
-  const prompt = `A vibrant, high-quality child-drawn album cover for a music track titled "${recap.trackTitle || 'My Jam'}". 
-  The album is for a ${stats.instrument} performance in the genre of ${recap.genre || 'Magic Pop'}. 
-  Style: ${recap.performanceStyle}. 
-  Artistic details: hand-drawn crayon scribbles, bright colors, stars, musical notes, and a cute interpretation of a ${stats.instrument}. 
-  Vibe: Energetic, fun, and magical. 
-  The words "${recap.trackTitle || 'PLINKY'}" should be visible in messy, playful letters.`;
-
-  const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash-image',
-    contents: {
-      parts: [{ text: prompt }],
-    },
-    config: {
-      imageConfig: {
-        aspectRatio: "1:1"
-      }
-    }
-  });
-
-  for (const part of response.candidates[0].content.parts) {
-    if (part.inlineData) {
-      return `data:image/png;base64,${part.inlineData.data}`;
-    }
-  }
-  
-  throw new Error("Failed to generate jacket image");
-};
-
-export const generateMixSettings = async (events: PerformanceEvent[], instrument: string): Promise<{ 
-  mix: MixingPreset, 
-  genre: string, 
-  trackTitle: string,
-  extendedEventLog: PerformanceEvent[]
-}> => {
-  const ai = new GoogleGenAI({ apiKey: getApiKey() });
-  const eventSummary = events.slice(0, 30).map(e => `${e.sound}@${Math.round(e.timestamp)}ms`).join(', ');
-
-  const prompt = `You are a professional Music Producer. 
-  The user played a ${instrument}. Their rhythm DNA (first 30 events): [${eventSummary}].
-  
-  TASK:
-  1. Identify Genre.
-  2. Define Mix.
-  3. CREATE A 60-SECOND STUDIO ARRANGEMENT.
-     
-  Return JSON. For the log, use key "log" with objects {t: timestamp_ms, s: sound_id}.`;
-
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
-    contents: prompt,
+    contents: `Analyze this performance sequence for a ${instrument}: ${JSON.stringify(eventLog.slice(0, 50))}.
+    Determine a professional-sounding genre. 
+    Create a COOL, ENERGETIC, and KID-SAFE track title (e.g., 'Neon Skyline', 'Electric Pulse', 'Solar Beat'). 
+    CRITICAL: AVOID anything dark, mature, or abstract (No 'Void', 'Shadows', 'Echoes', 'Darkness').
+    Suggest audio mixing settings.
+    Return JSON.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -223,28 +174,72 @@ export const generateMixSettings = async (events: PerformanceEvent[], instrument
             },
             required: ["reverbAmount", "compressionThreshold", "bassBoost", "midBoost", "trebleBoost", "distortionAmount"]
           },
-          log: {
+          extendedEventLog: {
             type: Type.ARRAY,
             items: {
               type: Type.OBJECT,
               properties: {
-                t: { type: Type.NUMBER },
-                s: { type: Type.STRING }
+                timestamp: { type: Type.NUMBER },
+                sound: { type: Type.STRING }
               },
-              required: ["t", "s"]
+              required: ["timestamp", "sound"]
             }
           }
         },
-        required: ["genre", "trackTitle", "mix", "log"]
+        required: ["genre", "trackTitle", "mix", "extendedEventLog"]
       }
     }
   });
 
   const raw = JSON.parse(response.text.trim());
-  return {
-    mix: raw.mix,
-    genre: raw.genre,
-    trackTitle: raw.trackTitle,
-    extendedEventLog: raw.log.map((e: any) => ({ timestamp: e.t, sound: e.s }))
-  };
 };
+
+
+/**
+ * GENERATE STUDIO MUSIC (Streaming Pipeline)
+ */
+export async function* generateStudioMusicStream(
+  recap: RecapData, 
+  stats: SessionStats, 
+  eventLog: PerformanceEvent[]
+): AsyncGenerator<string> {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  
+  // Limiting event log even further and simplifying labels to reduce TTS "complexity" error risk.
+  const script = eventLog
+    .slice(0, 45) // Reduced from 80 to 45
+    .map(e => `${Math.round(e.timestamp)}ms:${e.sound.split(':')[1] || e.sound}`)
+    .join(' ');
+
+  const prompt = `Perform this musical score as high-fidelity audio:
+  Instrument: ${stats.instrument}
+  Genre: ${recap.genre}
+  Score: ${script}
+  
+  Style: Upbeat, Professional, Studio-quality. No talking. Start audio immediately.`;
+
+  try {
+    const result = await ai.models.generateContentStream({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: 'Kore' }
+          }
+        }
+      },
+    });
+
+    for await (const chunk of result) {
+      const audioData = chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+      if (audioData) {
+        yield audioData;
+      }
+    }
+  } catch (err) {
+    console.error("Studio stream generation failed:", err);
+    throw err;
+  }
+}

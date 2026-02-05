@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent } from './services/types';
 import { INSTRUMENTS, PRESET_ZONES, getInstrumentIcon } from './services/constants';
@@ -52,7 +53,7 @@ const BrownPianoDoodle: React.FC<{ className?: string; style?: React.CSSProperti
 const PurpleClusterDoodle: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
   <svg width="65" height="80" viewBox="0 0 65 80" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
     <path d="M1.50049 17.6482C2.11037 19.5149 2.72026 21.3817 6.9987 29.5772C11.2771 37.7727 19.2057 52.2403 23.595 60.0433C29.1847 69.9802 30.4424 72.3223 31.2232 74.9139C31.3757 75.6246 31.6806 76.3246 32.1426 76.9186C32.6047 77.5126 33.2146 77.9793 33.8429 78.4601" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
-    <path d="M3.34863 15.5268C3.34863 15.0601 4.87335 13.6529 7.79341 11.7685C11.8636 9.14179 17.1912 10.1103 21.5066 9.63652C25.3297 9.21681 30.4239 6.34844 37.8211 2.57598C40.1234 1.40183 44.2849 1.38449 49.2102 1.61783C51.1071 1.7077 51.696 2.31788 52.1626 2.90832C54.8451 6.30239 58.7374 12.9105 62.332 17.7471C65.9142 22.5671 60.3453 27.5336 57.878 30.0121C52.6067 35.3072 52.3243 44.264 51.4049 48.8602C50.2539 54.6139 50.1713 58.6538 50.1666 60.0645C50.1491 65.4191 62.7941 66.6654 62.6462 68.4296C62.309 72.4535 53.5811 71.8556 44.6592 73.2699C42.483 73.5103 40.9583 73.5103 39.7154 73.6269C38.4725 73.7436 37.5577 73.977 36.6151 74.2174" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
+    <path d="M3.34863 15.5268C3.34863 15.0601 4.87335 13.6529 7.79341 11.7685C11.8636 9.14179 17.1912 10.1103 21.5066 9.63652C25.3297 9.21681 30.4239 6.34844 37.8211 2.57598C40.1234 1.40183 44.2849 1.38449 49.2102 1.61783C51.1071 1.7077 51.696 2.31788 52.1626 2.90832C54.8451 6.30239 58.7374 12.9105 62.332 17.7471C65.9142 22.5671 60.3453 27.5336 57.878 30.0121C52.6067 35.3072 52.6067 44.264 51.4049 48.8602C50.2539 54.6139 50.1713 58.6538 50.1666 60.0645C50.1491 65.4191 62.7941 66.6654 62.6462 68.4296C62.309 72.4535 53.5811 71.8556 44.6592 73.2699C42.483 73.5103 40.9583 73.5103 39.7154 73.6269C38.4725 73.7436 37.5577 73.977 36.6151 74.2174" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
     <path d="M7.96875 19.0624C24.2786 16.941 29.8138 16.4743 37.5066 12.1255C39.4612 11.0207 41.8082 11.2841 43.3652 11.5174C45.9519 11.9051 47.9995 13.6317 49.8476 15.396C51.1592 16.648 50.171 18.3482 49.404 19.7589C47.6634 22.9605 44.3217 25.4122 42.3211 27.8907C37.5303 33.8256 41.8452 44.264 42.3118 49.8007C42.6438 53.7402 43.6933 56.5253 45.0794 59.8276C45.654 61.1965 47.3896 62.1893 48.3136 63.6C48.753 64.2707 48.6278 65.0107 48.1704 65.6047C46.0577 68.3482 41.8636 69.9605 38.3244 71.3854C36.0235 71.8556 33.8519 71.8627 32.1609 71.2758C31.3847 70.9222 30.7748 70.4555 29.2224 69.9747" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
     <path d="M16.2852 16.941C19.0481 29.8883 20.9055 35.5382 22.4395 40.1415C23.7923 44.2013 25.8216 50.8402 28.1364 55.7016C29.5271 58.8871 31.061 62.1823 32.5996 64.7703C33.2234 65.9583 33.5283 66.8917 33.8425 68.5605" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
     <path d="M29.2227 17.6482C29.5276 30.8359 30.1467 36.4716 31.9856 45.8974C35.6727 53.9161 40.3023 61.0085 41.9933 62.6561C42.7695 63.3703 43.3794 63.837 44.0078 65.0249" stroke="#9D9EFF" strokeWidth="3" strokeLinecap="round"/>
@@ -248,7 +249,7 @@ const StoryPage: React.FC<{ onBack: () => void }> = ({ onBack }) => (
         <h3 className="text-2xl font-black text-[#FF6B6B] uppercase tracking-widest mb-4">Why we created Plinky 🎨</h3>
         <p className="text-xl md:text-2xl text-[#1e3a8a] leading-relaxed font-bold">
           We believe that every child is an artist, and every doodle holds a hidden melody. 
-          Plinky was born from a simple dream: <span className="text-[#FF6B6B]">to turn the drawings on our fridges into real, playable magic.</span>
+          Plinky was born from a simple dream: <span className="text-[#FF6B6B]">to turn the drawings on our fridges into real, playable magic. </span>
           We wanted to bridge the gap between static sketches and interactive digital performance, making creativity truly audible.
         </p>
       </section>

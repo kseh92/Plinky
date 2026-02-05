@@ -49,15 +49,9 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [isMeasuring, setIsMeasuring] = useState(true);
   const [isMixing, setIsMixing] = useState(false);
   const [recapError, setRecapError] = useState<string | null>(null);
+  const [recapErrorDetails, setRecapErrorDetails] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
-  const hasGeminiKey = Boolean(import.meta?.env?.GEMINI_API_KEY);
 
-  useEffect(() => {
-    // Debug: log exposed env keys in the browser console
-    console.log("import.meta.env keys:", Object.keys(import.meta.env || {}));
-    console.log("GEMINI_API_KEY defined:", Boolean(import.meta?.env?.GEMINI_API_KEY));
-  }, []);
-  
   // Studio Mix states
   const [isPlayingMix, setIsPlayingMix] = useState(false);
   const [studioMixBlob, setStudioMixBlob] = useState<Blob | null>(null);
@@ -105,6 +99,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       setIsRecapLoading(true);
       setIsMixing(true);
       setRecapError(null);
+      setRecapErrorDetails(null);
       try {
         const recapData = await generateSessionRecap({ ...stats, durationSeconds: accurateDuration, intensity: stats.noteCount / (accurateDuration || 1) });
         const finalRecap: RecapData = { ...recapData };
@@ -128,9 +123,14 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         }
 
         setRecap(finalRecap);
-      } catch (err) {
+      } catch (err: any) {
         console.error("Studio processing failed", err);
+        const details =
+          err?.message ||
+          err?.toString?.() ||
+          (typeof err === 'object' ? JSON.stringify(err) : String(err));
         setRecapError("Recap generation failed. Please try again.");
+        setRecapErrorDetails(details);
       } finally {
         setIsRecapLoading(false); 
         setIsMixing(false); 
@@ -220,12 +220,6 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       </p>
 
       <div className="w-full flex flex-col gap-8 md:gap-12">
-        {!hasGeminiKey && (
-          <div className="w-full mb-8 md:mb-12 py-4 md:py-6 text-center bg-yellow-100/80 text-yellow-900 border-4 border-yellow-200 rounded-[2rem] md:rounded-[3rem] font-black uppercase tracking-widest">
-            Missing GEMINI_API_KEY
-          </div>
-        )}
-
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10">
           <div className="bg-white/60 rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-12 text-center border-4 border-white shadow-xl">
             <p className="text-[12px] font-black text-[#1e3a8a]/50 uppercase tracking-widest mb-2">Instrument</p>
@@ -253,6 +247,11 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         ) : recapError ? (
           <div className="w-full py-10 md:py-16 text-center bg-white/40 rounded-[3rem] md:rounded-[4rem] border-4 border-red-200 text-red-600 font-black uppercase tracking-widest">
             {recapError}
+            {recapErrorDetails && (
+              <div className="mt-4 px-6 text-xs md:text-sm font-mono text-red-500 uppercase tracking-normal break-words">
+                {recapErrorDetails}
+              </div>
+            )}
           </div>
         ) : null}
 
@@ -349,15 +348,15 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
               <div className="flex flex-col md:flex-row gap-6">
                 <button 
                   onClick={() => setShowShareModal(false)}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-6 rounded-full font-black text-2xl md:text-3xl uppercase tracking-widest shadow-[0_10px_0_#065f46] hover:translate-y-1 active:shadow-none active:translate-y-[10px] transition-all"
+                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-full uppercase tracking-widest transition-colors"
                 >
-                  YEAH! 🚀
+                  Confirm Share
                 </button>
                 <button 
                   onClick={() => setShowShareModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-[#1e3a8a] py-6 rounded-full font-black text-2xl md:text-3xl uppercase tracking-widest shadow-[0_10px_0_#94a3b8] hover:translate-y-1 active:shadow-none active:translate-y-[10px] transition-all"
+                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-black py-4 rounded-full uppercase tracking-widest transition-colors"
                 >
-                  Not yet! 🎨
+                  Cancel
                 </button>
               </div>
            </div>

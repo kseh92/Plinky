@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
-import { HitZone, PerformanceEvent } from '../services/types';
+import { HitZone, PerformanceEvent, InstrumentType } from '../services/types';
 import { toneService } from '../services/toneService';
 
 interface Particle {
@@ -14,6 +14,7 @@ interface Particle {
 }
 
 interface Props {
+  instrumentType: InstrumentType;
   hitZones: HitZone[];
   onExit: (recording: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number; eventLog: PerformanceEvent[] }) => void;
 }
@@ -45,7 +46,7 @@ const MascotPlayer: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
+const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [landmarker, setLandmarker] = useState<HandLandmarker | null>(null);
@@ -109,7 +110,7 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
     setIsAudioLoading(true);
     await toneService.init(); 
     toneService.applyMixingPreset({
-      reverbAmount: 0.2,
+      reverbAmount: instrumentType === 'Harp' ? 0.4 : 0.2,
       compressionThreshold: -24,
       bassBoost: 2,
       midBoost: 0,
@@ -228,14 +229,18 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
             const rectY = (zone.y / 100) * canvasRef.current.height;
             const rectW = (zone.width / 100) * canvasRef.current.width;
             const rectH = (zone.height / 100) * canvasRef.current.height;
-            ctx.fillStyle = isActive ? 'rgba(239, 68, 68, 0.5)' : 'rgba(59, 130, 246, 0.2)';
-            ctx.strokeStyle = isActive ? '#ef4444' : 'rgba(59, 130, 246, 0.6)';
-            ctx.lineWidth = isActive ? 10 : 4;
+            const baseColor = instrumentType === 'Harp' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(59, 130, 246, 0.2)';
+            const activeColor = instrumentType === 'Harp' ? 'rgba(251, 191, 36, 0.6)' : 'rgba(239, 68, 68, 0.5)';
+            const strokeColor = instrumentType === 'Harp' ? '#fbbf24' : (isActive ? '#ef4444' : 'rgba(59, 130, 246, 0.6)');
+
+            ctx.fillStyle = isActive ? activeColor : baseColor;
+            ctx.strokeStyle = strokeColor;
+            ctx.lineWidth = isActive ? 10 : (instrumentType === 'Harp' ? 2 : 4);
             ctx.lineJoin = 'round';
             ctx.strokeRect(rectX, rectY, rectW, rectH);
             ctx.fillRect(rectX, rectY, rectW, rectH);
-            ctx.fillStyle = isActive ? '#fff' : '#1e3a8a';
-            ctx.font = 'bold 24px Fredoka One';
+            ctx.fillStyle = isActive ? '#fff' : (instrumentType === 'Harp' ? '#92400e' : '#1e3a8a');
+            ctx.font = 'bold 18px Fredoka One';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const labelY = zone.height > 30 ? rectY + (rectH * 0.8) : rectY + (rectH / 2);
@@ -247,7 +252,7 @@ const InstrumentPlayer: React.FC<Props> = ({ hitZones, onExit }) => {
     };
     render();
     return () => cancelAnimationFrame(animationId);
-  }, [landmarker, hitZones, hasStarted]);
+  }, [landmarker, hitZones, hasStarted, instrumentType]);
 
   return (
     <div className="fixed inset-0 bg-black z-50 overflow-hidden">

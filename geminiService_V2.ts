@@ -1,13 +1,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
 
+const getApiKey = () => {
+  const key = import.meta?.env?.VITE_API_KEY as string | undefined;
+  if (!key) {
+    throw new Error("Missing VITE_API_KEY. Set it in your environment and restart the dev server.");
+  }
+  return key;
+};
+
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Create a "blueprint" for a hand-drawn ${instrument}. 
     Drum parts: kick, snare, hihat, crash, high tom, mid tom, floor tom.
     Piano notes: c4, d4, e4, f4, g4, a4, b4, c5. Use '#' for sharps if needed (e.g. c#4).
+    Harp strings: c4, d4, e4, f4, g4, a4, b4, c5, d5, e5, f5, g5.
     Return JSON.`,
     config: {
       responseMimeType: "application/json",
@@ -44,12 +53,15 @@ export const generateBlueprint = async (instrument: InstrumentType): Promise<Ins
 };
 
 export const scanDrawing = async (instrument: InstrumentType, base64Image: string): Promise<HitZone[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const pianoPrompt = `Detect ALL individual keys in this piano drawing (both white and black/sharps).
     Identify keys from left to right. Use standard note names (c4, c#4, d4, d#4, etc.).
     Provide accurate bounding boxes. Return JSON.`;
   const drumPrompt = `Analyze this hand-drawn drum kit. Identify kick, snare, toms, hi-hat, and crash. Return JSON.`;
-  const prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
+  const harpPrompt = `Analyze this hand-drawn harp. Identify individual vertical strings (C, D, E, F, G, A, B).
+    Strings should be vertical boxes. Return JSON.`;
+  let prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
+  if (instrument === 'Harp') prompt = harpPrompt;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -83,7 +95,7 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
 };
 
 export const generateSessionRecap = async (stats: SessionStats): Promise<RecapData> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const intensityLabel = stats.intensity > 4 ? "Extremely High (Shredding/Rapid)" : 
                         stats.intensity > 1.5 ? "Moderate (Groovy/Rhythmic)" : "Low (Calm/Minimalist)";
   const varietyLabel = stats.uniqueNotesCount > 10 ? "Very High (Experimental/Orchestral)" :
@@ -141,7 +153,7 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
 };
 
 export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const prompt = `A vibrant, high-quality child-drawn album cover for a music track titled "${recap.trackTitle || 'My Jam'}". 
   The album is for a ${stats.instrument} performance in the genre of ${recap.genre || 'Magic Pop'}. 
   Style: ${recap.performanceStyle}. 
@@ -176,7 +188,7 @@ export const generateMixSettings = async (events: PerformanceEvent[], instrument
   trackTitle: string,
   extendedEventLog: PerformanceEvent[]
 }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const eventSummary = events.slice(0, 30).map(e => `${e.sound}@${Math.round(e.timestamp)}ms`).join(', ');
 
   const prompt = `You are a professional Music Producer. 

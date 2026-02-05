@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { SessionStats, RecapData } from '../services/types';
 import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../services/geminiService';
 import { toneService } from '../services/toneService';
-import RecapCard from './RecapCard';
+import RecapCard from './RecapCard_V2';
 
 interface Props {
   recording: Blob | null;
@@ -48,6 +48,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [accurateDuration, setAccurateDuration] = useState<number | null>(null);
   const [isMeasuring, setIsMeasuring] = useState(true);
   const [isMixing, setIsMixing] = useState(false);
+  const [recapError, setRecapError] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   
   // Studio Mix states
@@ -96,29 +97,34 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       if (!stats || isMeasuring || accurateDuration === null) return;
       setIsRecapLoading(true);
       setIsMixing(true);
+      setRecapError(null);
       try {
-        const [recapData, mixData] = await Promise.all([
-          generateSessionRecap({ ...stats, durationSeconds: accurateDuration, intensity: stats.noteCount / (accurateDuration || 1) }),
-          generateMixSettings(stats.eventLog || [], stats.instrument)
-        ]);
-        
-        // After we have the recap data (genre, style), generate the jacket
-        const finalRecap: RecapData = { 
-          ...recapData, 
-          genre: mixData.genre, 
-          trackTitle: mixData.trackTitle, 
-          mixingSuggestion: mixData.mix, 
-          extendedEventLog: mixData.extendedEventLog 
-        };
+        const recapData = await generateSessionRecap({ ...stats, durationSeconds: accurateDuration, intensity: stats.noteCount / (accurateDuration || 1) });
+        const finalRecap: RecapData = { ...recapData };
 
-        const jacketUrl = await generateAlbumJacket({ ...stats }, finalRecap);
-        finalRecap.personalJacketUrl = jacketUrl;
+        try {
+          const mixData = await generateMixSettings(stats.eventLog || [], stats.instrument);
+          finalRecap.genre = mixData.genre;
+          finalRecap.trackTitle = mixData.trackTitle;
+          finalRecap.mixingSuggestion = mixData.mix;
+          finalRecap.extendedEventLog = mixData.extendedEventLog;
+          toneService.applyMixingPreset(mixData.mix);
+        } catch (err) {
+          console.warn("Mix settings generation failed", err);
+        }
 
-        toneService.applyMixingPreset(mixData.mix);
+        try {
+          const jacketUrl = await generateAlbumJacket({ ...stats }, finalRecap);
+          finalRecap.personalJacketUrl = jacketUrl;
+        } catch (err) {
+          console.warn("Album jacket generation failed", err);
+        }
+
         setRecap(finalRecap);
-      } catch (err) { 
-        console.error("Studio processing failed", err); 
-      } finally { 
+      } catch (err) {
+        console.error("Studio processing failed", err);
+        setRecapError("Recap generation failed. Please try again.");
+      } finally {
         setIsRecapLoading(false); 
         setIsMixing(false); 
       }
@@ -149,6 +155,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       setStudioMixBlob(null);
 
       // Start recording the studio session
+      await toneService.init();
       await toneService.startRecording();
       toneService.replayEventLog(recap.extendedEventLog);
 
@@ -229,6 +236,10 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         ) : recap ? (
           <div className="animate-in fade-in duration-1000">
             <RecapCard recap={recap} />
+          </div>
+        ) : recapError ? (
+          <div className="w-full py-10 md:py-16 text-center bg-white/40 rounded-[3rem] md:rounded-[4rem] border-4 border-red-200 text-red-600 font-black uppercase tracking-widest">
+            {recapError}
           </div>
         ) : null}
 

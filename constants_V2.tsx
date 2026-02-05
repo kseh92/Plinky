@@ -61,7 +61,7 @@ export const TEMPLATE_IMAGES: Record<InstrumentType, string> = {
   'Piano': 'https://raw.githubusercontent.com/google-gemini/cookbook/main/samples/inputs/paper_instruments/piano_drawing.png',
   'Drum': 'https://raw.githubusercontent.com/google-gemini/cookbook/main/samples/inputs/paper_instruments/drum_drawing.png',
   'Guitar': '',
-  'Harp': ''
+  'Harp': 'https://raw.githubusercontent.com/google-gemini/cookbook/main/samples/inputs/paper_instruments/piano_drawing.png'
 };
 
 // Precisely mapped hit zones for the images provided
@@ -106,5 +106,18 @@ export const PRESET_ZONES: Record<InstrumentType, HitZone[]> = {
     { sound: 'crash_r', label: 'CRASH R', x: 62, y: 11, width: 16, height: 20 },
   ],
   'Guitar': [],
-  'Harp': []
+  'Harp': [
+    { sound: 'c4', label: 'C', x: 20, y: 15, width: 2.5, height: 70 },
+    { sound: 'd4', label: 'D', x: 25, y: 15, width: 2.5, height: 70 },
+    { sound: 'e4', label: 'E', x: 30, y: 15, width: 2.5, height: 70 },
+    { sound: 'f4', label: 'F', x: 35, y: 15, width: 2.5, height: 70 },
+    { sound: 'g4', label: 'G', x: 40, y: 15, width: 2.5, height: 70 },
+    { sound: 'a4', label: 'A', x: 45, y: 15, width: 2.5, height: 70 },
+    { sound: 'b4', label: 'B', x: 50, y: 15, width: 2.5, height: 70 },
+    { sound: 'c5', label: 'C', x: 55, y: 15, width: 2.5, height: 70 },
+    { sound: 'd5', label: 'D', x: 60, y: 15, width: 2.5, height: 70 },
+    { sound: 'e5', label: 'E', x: 65, y: 15, width: 2.5, height: 70 },
+    { sound: 'f5', label: 'F', x: 70, y: 15, width: 2.5, height: 70 },
+    { sound: 'g5', label: 'G', x: 75, y: 15, width: 2.5, height: 70 },
+  ]
 };

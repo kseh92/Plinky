@@ -94,7 +94,7 @@ const CrayonSpiral: React.FC<{ className?: string; style?: React.CSSProperties }
 );
 
 const ShakyHeart: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
-  <svg width="50" height="50" viewBox="0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
+  <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
     <path d="M25 45C25 45 5 35 5 20C5 10 15 5 25 15C35 5 45 10 45 20C45 35 25 45 25 45Z" stroke="#FB923C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );

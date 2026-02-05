@@ -2,9 +2,9 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
 
 const getApiKey = () => {
-  const key = import.meta?.env?.VITE_API_KEY as string | undefined;
+  const key = import.meta?.env?.GEMINI_API_KEY as string | undefined;
   if (!key) {
-    throw new Error("Missing VITE_API_KEY. Set it in your environment and restart the dev server.");
+    throw new Error("Missing GEMINI_API_KEY. Set it in your environment and restart the dev server.");
   }
   return key;
 };

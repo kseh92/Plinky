@@ -50,6 +50,13 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [isMixing, setIsMixing] = useState(false);
   const [recapError, setRecapError] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const hasGeminiKey = Boolean(import.meta?.env?.GEMINI_API_KEY);
+
+  useEffect(() => {
+    // Debug: log exposed env keys in the browser console
+    console.log("import.meta.env keys:", Object.keys(import.meta.env || {}));
+    console.log("GEMINI_API_KEY defined:", Boolean(import.meta?.env?.GEMINI_API_KEY));
+  }, []);
   
   // Studio Mix states
   const [isPlayingMix, setIsPlayingMix] = useState(false);
@@ -213,6 +220,12 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       </p>
 
       <div className="w-full flex flex-col gap-8 md:gap-12">
+        {!hasGeminiKey && (
+          <div className="w-full mb-8 md:mb-12 py-4 md:py-6 text-center bg-yellow-100/80 text-yellow-900 border-4 border-yellow-200 rounded-[2rem] md:rounded-[3rem] font-black uppercase tracking-widest">
+            Missing GEMINI_API_KEY
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 md:gap-10">
           <div className="bg-white/60 rounded-[2.5rem] md:rounded-[3.5rem] p-8 md:p-12 text-center border-4 border-white shadow-xl">
             <p className="text-[12px] font-black text-[#1e3a8a]/50 uppercase tracking-widest mb-2">Instrument</p>

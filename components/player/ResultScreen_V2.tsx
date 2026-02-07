@@ -266,9 +266,9 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     composerChunksRef.current = [];
 
     const durationSec = clamp(Math.round(accurateDuration || stats.durationSeconds || 30), 20, 60);
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const apiKey = process.env.API_KEY || import.meta.env.GEMINI_API_KEY || "";
     if (!apiKey) {
-      setComposerError('Missing VITE_GEMINI_API_KEY. Set it to use the AI composer.');
+      setComposerError('Missing GEMINI_API_KEY. Set it to use the AI composer.');
       setIsComposing(false);
       return;
     }

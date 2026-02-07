@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
 
 const getApiKey = () => {
-  return import.meta.env.VITE_GEMINI_API_KEY || import.meta.env.GEMINI_API_KEY || "";
+  return import.meta.env.GEMINI_API_KEY || "";
 };
 
 const withTimeout = async <T>(promise: Promise<T>, ms: number, label: string) => {

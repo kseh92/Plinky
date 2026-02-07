@@ -1,15 +1,8 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-<<<<<<< Updated upstream:components/ResultScreen_V2.tsx
-import { SessionStats, RecapData } from '../services/types';
-import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../services/geminiService';
-import { toneService } from '../services/toneService';
-import RecapCard from './RecapCard_V2';
-=======
 import { SessionStats, RecapData } from '../../services/types';
 import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../../services/geminiService';
 import { toneService } from '../../services/toneService';
-import RecapCard from './RecapCard';
->>>>>>> Stashed changes:components/player/ResultScreen_V2.tsx
+import RecapCard from './RecapCard_V2';
 
 interface Props {
   recording: Blob | null;
@@ -108,23 +101,13 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       setRecapError(null);
       setRecapErrorDetails(null);
       try {
-<<<<<<< Updated upstream:components/ResultScreen_V2.tsx
-        const recapData = await generateSessionRecap({ ...stats, durationSeconds: accurateDuration, intensity: stats.noteCount / (accurateDuration || 1) });
+        const recapData = await generateSessionRecap({
+          ...stats,
+          durationSeconds: accurateDuration,
+          intensity: stats.noteCount / (accurateDuration || 1)
+        });
+
         const finalRecap: RecapData = { ...recapData };
-=======
-        const [recapData, mixData] = await Promise.all([
-          generateSessionRecap({ ...stats, durationSeconds: accurateDuration, intensity: stats.noteCount / (accurateDuration || 1) }),
-          generateMixSettings(stats.eventLog || [], stats.instrument)
-        ]);
-        
-        const finalRecap: RecapData = { 
-          ...recapData, 
-          genre: mixData.genre, 
-          trackTitle: mixData.trackTitle, 
-          mixingSuggestion: mixData.mix, 
-          extendedEventLog: mixData.extendedEventLog 
-        };
->>>>>>> Stashed changes:components/player/ResultScreen_V2.tsx
 
         try {
           const mixData = await generateMixSettings(stats.eventLog || [], stats.instrument);
@@ -134,7 +117,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
           finalRecap.extendedEventLog = mixData.extendedEventLog;
           toneService.applyMixingPreset(mixData.mix);
         } catch (err) {
-          console.warn("Mix settings generation failed", err);
+          console.warn('Mix settings generation failed', err);
         }
 
         try {

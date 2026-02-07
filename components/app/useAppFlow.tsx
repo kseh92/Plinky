@@ -1,8 +1,8 @@
 // src/app/useAppFlow.ts
 import * as React from 'react';
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent } from '../../services/types.ts';
-import { PRESET_ZONES } from '../../services/constants.tsx';
-import { generateBlueprint, scanDrawing } from '../../services/geminiService.ts';
+import { PRESET_ZONES } from '../../services/constants';
+import { generateBlueprint, scanDrawing } from '../../services/geminiService';
 
 export type Step =
   | 'landing' | 'pick' | 'provide' | 'scan' | 'play' | 'result' | 'blueprint'

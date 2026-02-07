@@ -2,8 +2,9 @@ import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { SessionStats, RecapData, PerformanceEvent } from '../../services/types';
 import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../../services/geminiService';
 import { toneService } from '../../services/toneService';
-import { base64ToUint8Array, concatUint8Arrays, encodeWavFromPcm16, defaultLyriaWsUrl } from '../../services/lyriaStudio';
+import { concatUint8Arrays, encodeWavFromPcm16 } from '../../services/lyriaStudio';
 import { filterPlayableTracks } from '../../services/youtubeAvailability';
+import { startLyriaComposer } from '../../services/aiComposer';
 import RecapCard from './RecapCard_V2';
 
 interface Props {
@@ -53,7 +54,6 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [recapStage, setRecapStage] = useState<string>('');
   const [recapError, setRecapError] = useState<string | null>(null);
   const [recapErrorDetails, setRecapErrorDetails] = useState<string | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
 
   // Studio Mix states
   const [isComposing, setIsComposing] = useState(false);
@@ -61,7 +61,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [composerProgress, setComposerProgress] = useState(0);
   const [composerError, setComposerError] = useState<string | null>(null);
   const composerChunksRef = useRef<Uint8Array[]>([]);
-  const composerWsRef = useRef<WebSocket | null>(null);
+  const composerLiveRef = useRef<any>(null);
   const composerTimerRef = useRef<number | null>(null);
 
   const audioUrl = useMemo(() => {
@@ -179,39 +179,42 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     a.click();
   };
 
-  const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
+  const handleShare = async () => {
+    const title = recap?.trackTitle || 'My Studio Mix';
+    const text = `Check out my studio mix: ${title}`;
+    const shareUrl = studioMixUrl || audioUrl || window.location.href;
 
-  const estimateBpm = (events: PerformanceEvent[] | undefined) => {
-    if (!events || events.length < 2) return 90;
-    const timestamps = events.map((e) => e.timestamp).sort((a, b) => a - b);
-    const intervals: number[] = [];
-    for (let i = 1; i < timestamps.length; i += 1) {
-      const delta = (timestamps[i] - timestamps[i - 1]) / 1000;
-      if (delta > 0.05 && delta < 2.5) intervals.push(delta);
+    try {
+      if (studioMixBlob && navigator.canShare?.({ files: [new File([studioMixBlob], `${title}.wav`, { type: 'audio/wav' })] })) {
+        const file = new File([studioMixBlob], `${title}.wav`, { type: 'audio/wav' });
+        await navigator.share({ title, text, files: [file] });
+        return;
+      }
+
+      if (navigator.share) {
+        await navigator.share({ title, text, url: shareUrl });
+        return;
+      }
+
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        return;
+      }
+    } catch (err) {
+      console.warn('Share failed', err);
     }
-    if (intervals.length === 0) return 90;
-    intervals.sort((a, b) => a - b);
-    const median = intervals[Math.floor(intervals.length / 2)];
-    const bpm = Math.round(60 / median);
-    return clamp(bpm, 60, 160);
   };
 
-  const buildWeightedPrompts = () => {
-    const instrument = stats?.instrument || 'instrument';
-    const genre = recap?.genre ? `${recap.genre}` : 'cinematic pop';
-    return [
-      { text: `Instrumental ${genre} track led by ${instrument} with clear lead and no vocals`, weight: 1.0 },
-      { text: 'Follow the lead rhythm and timing closely; add tasteful bassline and percussion that supports the performance', weight: 0.9 },
-      { text: 'Polished studio mix, warm low end, crisp highs, dynamic but not harsh', weight: 0.7 }
-    ];
-  };
+  const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
 
   const finalizeComposer = () => {
     const pcm = concatUint8Arrays(composerChunksRef.current);
     if (!pcm.length) {
+      console.warn('[Composer] No audio chunks received');
       setComposerError('No audio was generated. Please try again.');
       return;
     }
+    console.info(`[Composer] Finalizing WAV with ${pcm.length} bytes`);
     const sampleRate = 48000;
     const wavBuffer = encodeWavFromPcm16(pcm, sampleRate, 2);
     const blob = new Blob([wavBuffer], { type: 'audio/wav' });
@@ -224,15 +227,18 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       composerTimerRef.current = null;
     }
 
-    const ws = composerWsRef.current;
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ playback_control: 'STOP' }));
-      ws.close();
+    const live = composerLiveRef.current;
+    if (live && typeof live.stop === 'function') {
+      try {
+        live.stop();
+      } catch (err) {
+        console.warn('[Composer][SDK] Stop failed', err);
+      }
     }
 
     setIsComposing(false);
     setComposerProgress(0);
-    composerWsRef.current = null;
+    composerLiveRef.current = null;
 
     window.setTimeout(finalizeComposer, 150);
   };
@@ -247,80 +253,45 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     composerChunksRef.current = [];
 
     const durationSec = clamp(Math.round(accurateDuration || stats.durationSeconds || 30), 20, 60);
-    const bpm = estimateBpm(stats.eventLog || []);
-    const notesPerSecond = stats.noteCount / Math.max(1, stats.durationSeconds || 1);
-    const density = clamp(notesPerSecond / 6, 0.2, 0.9);
-    const brightness = stats.instrument === 'Harp' ? 0.65 : 0.55;
-
-    const wsUrl = defaultLyriaWsUrl();
-    if (!wsUrl) {
-      setComposerError('Missing GEMINI_API_KEY. Set it to use the AI composer.');
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      setComposerError('Missing VITE_GEMINI_API_KEY. Set it to use the AI composer.');
       setIsComposing(false);
       return;
     }
 
-    const ws = new WebSocket(wsUrl);
-    composerWsRef.current = ws;
-
-    ws.onopen = () => {
-      ws.send(
-        JSON.stringify({
-          setup: {
-            model: 'models/lyria-realtime-exp'
-          }
-        })
-      );
-    };
-
-    ws.onmessage = (event) => {
+    console.info('[Composer] Connecting via SDK live client');
+    (async () => {
       try {
-        if (typeof event.data !== 'string') return;
-        const data = JSON.parse(event.data);
-        if (data.setupComplete) {
-          ws.send(
-            JSON.stringify({
-              client_content: {
-                weighted_prompts: buildWeightedPrompts()
-              }
-            })
-          );
-          ws.send(
-            JSON.stringify({
-              music_generation_config: {
-                bpm,
-                density,
-                brightness,
-                guidance: 4.5,
-                audio_format: 'pcm16',
-                sample_rate_hz: 48000,
-                music_generation_mode: 'QUALITY'
-              }
-            })
-          );
-          ws.send(JSON.stringify({ playback_control: 'PLAY' }));
-        } else if (data.serverContent?.audioChunks?.length) {
-          data.serverContent.audioChunks.forEach((chunk: any) => {
-            const payload = chunk?.data ?? chunk?.bytes;
-            if (typeof payload === 'string') {
-              composerChunksRef.current.push(base64ToUint8Array(payload));
-            }
-          });
-        } else if (data.filteredPrompt) {
-          setComposerError('Prompt was filtered. Try a different description.');
-          stopAIComposer();
-        } else if (data.warning) {
-          console.warn('Composer warning:', data.warning);
-        }
-      } catch {
-        setComposerError('Composer message error');
-        stopAIComposer();
-      }
-    };
+        const live = await startLyriaComposer(stats, recap, stats.eventLog || [], {
+          apiKey,
+          onChunk: (chunk) => {
+            composerChunksRef.current.push(chunk);
+          },
+          onMessage: (message) => {
+            console.debug('[Composer][SDK] Message', message);
+          },
+          onError: (err) => {
+            console.error('[Composer][SDK] Error', err);
+            setComposerError('Composer connection failed.');
+            stopAIComposer();
+          },
+          onClose: () => {
+            console.warn('[Composer][SDK] Closed');
+          }
+        });
 
-    ws.onerror = () => {
-      setComposerError('Composer connection failed.');
-      stopAIComposer();
-    };
+        composerLiveRef.current = live;
+        console.info('[Composer][SDK] Connected and playing');
+      } catch (err) {
+        console.error('[Composer][SDK] Init failed', err);
+        setComposerError('Composer connection failed.');
+        stopAIComposer();
+        return;
+      }
+    })();
+
+    // Raw WebSocket path is intentionally disabled; SDK is the source of truth.
 
     const startTime = Date.now();
     composerTimerRef.current = window.setInterval(() => {
@@ -411,17 +382,28 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
           <div className="flex flex-col gap-8 md:gap-12 w-full">
             {!isComposing ? (
               <div className="flex flex-col gap-6 w-full">
-                <button
-                  onClick={startAIComposer}
-                  disabled={!isComposerReady}
-                  className={`group relative w-full py-8 md:py-12 text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#020A20] md:shadow-[0_16px_0_#020A20] transition-all duration-150 transform flex items-center justify-center gap-6 ${
-                    isComposerReady
-                      ? 'bg-[#1e3a8a] hover:bg-[#2a4db3] hover:translate-y-[4px] md:hover:translate-y-[8px] active:shadow-none active:translate-y-[10px] md:active:translate-y-[16px] hover:scale-102'
-                      : 'bg-[#1e3a8a]/40 cursor-not-allowed'
-                  }`}
-                >
-                  <span className="text-3xl md:text-6xl">🎧</span> AI COMPOSER
-                </button>
+                {!studioMixBlob && (
+                  <button
+                    onClick={startAIComposer}
+                    disabled={!isComposerReady}
+                    className={`group relative w-full py-8 md:py-12 text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#020A20] md:shadow-[0_16px_0_#020A20] transition-all duration-150 transform flex items-center justify-center gap-6 ${
+                      isComposerReady
+                        ? 'bg-[#1e3a8a] hover:bg-[#2a4db3] hover:translate-y-[4px] md:hover:translate-y-[8px] active:shadow-none active:translate-y-[10px] md:active:translate-y-[16px] hover:scale-102'
+                        : 'bg-[#1e3a8a]/40 cursor-not-allowed'
+                    }`}
+                  >
+                    <span className="text-3xl md:text-6xl">🎧</span> AI COMPOSER
+                  </button>
+                )}
+
+                {studioMixBlob && (
+                  <button
+                    onClick={startAIComposer}
+                    className="self-center px-6 py-3 bg-white/70 hover:bg-white text-[#1e3a8a] text-xs md:text-sm font-black uppercase tracking-[0.3em] rounded-full border-4 border-white shadow-lg transition-all active:scale-95"
+                  >
+                    Retry Mix
+                  </button>
+                )}
 
                 {!isComposerReady && (
                   <p className="text-center text-[#1e3a8a]/60 font-black uppercase tracking-[0.2em] text-xs md:text-sm">
@@ -435,12 +417,12 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
                   </div>
                 )}
 
-                <button
-                  onClick={() => setShowShareModal(true)}
-                  className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
-                >
-                  <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
-                </button>
+                    <button
+                      onClick={handleShare}
+                      className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
+                    >
+                      <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
+                    </button>
               </div>
             ) : (
               <button
@@ -468,17 +450,18 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
               </div>
 
               <div className="flex flex-col gap-4 md:gap-6">
-                <button
-                  onClick={handleDownloadStudio}
-                  disabled={!studioMixBlob}
-                  className={`w-full py-6 md:py-8 text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all flex items-center justify-center gap-4 ${
-                    studioMixBlob
-                      ? 'bg-[#FF6B6B] text-white hover:bg-[#D64545] animate-bounce shadow-[0_8px_0_#D64545]'
-                      : 'bg-white/20 text-[#1e3a8a]/30 cursor-not-allowed grayscale'
-                  }`}
-                >
-                  <span>🌟</span> {studioMixBlob ? 'DOWNLOAD STUDIO' : 'MIX NOT READY'}
-                </button>
+                    <button
+                      onClick={handleDownloadStudio}
+                      disabled={!studioMixBlob}
+                      className={`w-full py-6 md:py-8 text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all flex items-center justify-center gap-4 ${
+                        studioMixBlob
+                          ? 'bg-[#FF6B6B] text-white hover:bg-[#D64545] animate-bounce shadow-[0_8px_0_#D64545]'
+                          : 'bg-white/20 text-[#1e3a8a]/30 cursor-not-allowed grayscale'
+                      }`}
+                    >
+                      <span>🌟</span>{' '}
+                      {studioMixBlob ? `DOWNLOAD ${recap?.trackTitle || 'STUDIO MIX'}` : 'MIX NOT READY'}
+                    </button>
                 {studioMixUrl && (
                   <div className="flex items-center justify-center bg-white/60 rounded-3xl border-2 border-white p-3">
                     <audio controls src={studioMixUrl} className="w-full h-10" />
@@ -498,35 +481,6 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         ↺ New Jam
       </button>
 
-      {/* Share Confirmation Popup */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-[#1e3a8a]/80 backdrop-blur-xl z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-           <div className="bg-white rounded-[4rem] p-10 md:p-16 max-w-2xl w-full shadow-[0_40px_100px_rgba(0,0,0,0.5)] border-[12px] border-white/60 text-center animate-in zoom-in-95 duration-300">
-              <div className="text-8xl mb-8 animate-bounce">📢</div>
-              <h3 className="text-4xl md:text-6xl font-black text-[#1e3a8a] uppercase tracking-tighter leading-tight mb-6" style={{ fontFamily: 'Fredoka One' }}>
-                Ready to Debut?
-              </h3>
-              <p className="text-xl md:text-3xl text-gray-500 font-bold mb-12 leading-relaxed">
-                Are you ready to show your doodle masterpiece to the world?
-              </p>
-              
-              <div className="flex flex-col md:flex-row gap-6">
-                <button 
-                  onClick={() => setShowShareModal(false)}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-full uppercase tracking-widest transition-colors"
-                >
-                  Confirm Share
-                </button>
-                <button 
-                  onClick={() => setShowShareModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-black py-4 rounded-full uppercase tracking-widest transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-           </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -1,8 +1,15 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
+<<<<<<< Updated upstream:components/ResultScreen_V2.tsx
 import { SessionStats, RecapData } from '../services/types';
 import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../services/geminiService';
 import { toneService } from '../services/toneService';
 import RecapCard from './RecapCard_V2';
+=======
+import { SessionStats, RecapData } from '../../services/types';
+import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../../services/geminiService';
+import { toneService } from '../../services/toneService';
+import RecapCard from './RecapCard';
+>>>>>>> Stashed changes:components/player/ResultScreen_V2.tsx
 
 interface Props {
   recording: Blob | null;
@@ -24,8 +31,8 @@ const PersonalJacket: React.FC<{ imageUrl: string, title: string, genre: string 
           {/* Text Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent pointer-events-none"></div>
           <div className="absolute bottom-8 left-8 right-8 md:bottom-16 md:left-16 md:right-16">
-             <p className="text-white font-black text-3xl md:text-7xl uppercase tracking-tighter truncate drop-shadow-2xl mb-1 md:mb-3">{title}</p>
-             <p className="text-sky-300 font-black text-base md:text-3xl uppercase tracking-widest opacity-95 drop-shadow-md">{genre}</p>
+             <p className="text-white font-black text-3xl md:text-5xl uppercase tracking-tighter truncate drop-shadow-2xl mb-1 md:mb-3">{title}</p>
+             <p className="text-sky-300 font-black text-base md:text-2xl uppercase tracking-widest opacity-95 drop-shadow-md">{genre}</p>
           </div>
         </div>
 
@@ -101,8 +108,23 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       setRecapError(null);
       setRecapErrorDetails(null);
       try {
+<<<<<<< Updated upstream:components/ResultScreen_V2.tsx
         const recapData = await generateSessionRecap({ ...stats, durationSeconds: accurateDuration, intensity: stats.noteCount / (accurateDuration || 1) });
         const finalRecap: RecapData = { ...recapData };
+=======
+        const [recapData, mixData] = await Promise.all([
+          generateSessionRecap({ ...stats, durationSeconds: accurateDuration, intensity: stats.noteCount / (accurateDuration || 1) }),
+          generateMixSettings(stats.eventLog || [], stats.instrument)
+        ]);
+        
+        const finalRecap: RecapData = { 
+          ...recapData, 
+          genre: mixData.genre, 
+          trackTitle: mixData.trackTitle, 
+          mixingSuggestion: mixData.mix, 
+          extendedEventLog: mixData.extendedEventLog 
+        };
+>>>>>>> Stashed changes:components/player/ResultScreen_V2.tsx
 
         try {
           const mixData = await generateMixSettings(stats.eventLog || [], stats.instrument);

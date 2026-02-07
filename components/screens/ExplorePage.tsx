@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { getInstrumentIcon } from '../services/constants';
 
-interface ExplorePageProps {
+import React, { useState } from 'react';
+
+interface ExploreScreenProps {
   onBack: () => void;
   onCreateCustom: (name: string) => void;
 }
 
-const ExplorePage: React.FC<ExplorePageProps> = ({ onBack, onCreateCustom }) => {
+// --- ExploreScreen: Create custom instruments via Gemini ---
+export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCustom }) => {
   const [customName, setCustomName] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -96,5 +97,3 @@ const ExplorePage: React.FC<ExplorePageProps> = ({ onBack, onCreateCustom }) => 
     </div>
   );
 };
-
-export default ExplorePage;

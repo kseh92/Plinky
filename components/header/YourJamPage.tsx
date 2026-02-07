@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { getInstrumentIcon } from '../services/constants';
+import { getInstrumentIcon } from '../../services/constants';
 
 interface JamItem {
   id: string;
@@ -65,7 +66,8 @@ const VinylJam: React.FC<{ item: JamItem }> = ({ item }) => {
   );
 };
 
-const YourJamPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+// --- YourJamScreen: Local collection of recorded jams ---
+export const YourJamScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   return (
     <div className="w-full max-w-6xl mx-auto p-8 md:p-12 bg-white/20 backdrop-blur-xl rounded-[4rem] shadow-2xl border-[12px] border-white/40 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
@@ -109,5 +111,3 @@ const YourJamPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     </div>
   );
 };
-
-export default YourJamPage;

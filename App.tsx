@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream:App.tsx
 
 import React, { useEffect, useState } from 'react';
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent } from './services/types';
@@ -11,32 +12,43 @@ import GalleryPage from './components/GalleryPage';
 import SettingsPage from './components/SettingsPage';
 import YourJamPage from './components/YourJamPage';
 import ExplorePage from './components/ExplorePage';
+=======
+import React from 'react';
+import { useAppFlow } from './components/app/useAppFlow.tsx';
+>>>>>>> Stashed changes:App_V2.tsx
 
-// --- Decorative Doodle Components ---
+import { BackgroundElements } from './components/layout/BackgroundElements.tsx';
+import { GlobalHeader } from './components/layout/GlobalHeader.tsx';
+import { RedMonster } from './components/layout/RedMonster.tsx';
 
-const ScribbleDoodle: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
-  <svg width="144" height="222" viewBox="0 0 144 222" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
-    <path d="M128.359 31.8455C67.7629 92.9191 29.1767 130.036 15.1443 142.563C8.16068 148.797 2.74953 157.351 1.43438 161.43C-3.76225 177.545 38.9288 158.654 62.1053 162.064C79.7131 164.655 104.24 168.935 128.26 166.091C135.689 165.211 145.531 165.508 142.404 157.591C139.278 149.674 122.9 133.84 105.046 118.332C68.8889 86.9248 46.4971 71.8415 41.9561 68.9969C39.747 67.613 38.234 65.0213 38.2091 72.9039C38.1271 98.9776 41.5094 150.326 42.3283 201.717C42.625 220.34 44.7849 223.703 48.9041 219.23C61.6731 205.366 74.5124 161.224 88.5573 108.77C103.52 38.7685 109.327 21.598 111.386 14.7607C112.627 11.3163 114.265 7.92329 115.952 1.00024" stroke="#131313" strokeWidth="2" strokeLinecap="round"/>
-  </svg>
-);
+// --- Doodles ---
+import { 
+  ScribbleDoodle, 
+  WaveDoodle, 
+  GreenPlantDoodle, 
+  BrownPianoDoodle, 
+  PurpleClusterDoodle 
+} from './components/decor/doodles.tsx';
+import { 
+  MessySun, 
+  ShakyStar, 
+  CrayonSpiral, 
+  ShakyHeart 
+} from './components/decor/crayonDoodles.tsx';
 
-const WaveDoodle: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
-  <svg width="688" height="171" viewBox="0 0 688 171" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
-    <path d="M899.001 47.8983C781.054 54.0966 663.108 60.2948 600.136 59.0605C537.165 57.8263 532.742 48.9716 525.671 30.2426C518.601 11.5136 509.018 -16.8214 499.29 -40.2729C481.748 -82.5611 466.419 -103.222 458.992 -109.474C452.185 -115.203 427.863 -111.352 390.335 -96.2319C371.614 -88.6895 357.967 -68.7153 345.58 -52.9647C333.193 -37.2141 323.61 -23.0466 314.619 -6.00799C305.628 11.0306 297.519 30.5109 290.025 52.5C274.59 97.786 264.637 133.655 256.461 151.525C253.04 159.003 249.76 162.312 247.135 164.579C242.668 168.438 217.168 169.529 171.855 169.986C149.392 170.212 128.016 167.785 107.052 162.003C86.0871 156.221 66.1837 144.48 51.1388 135.707C36.094 124.934 26.5108 113.423 19.3626 98.6383C12.2143 83.8537 7.79133 66.1443 1.00049 42.5318" stroke="#020A20" strokeWidth="2" strokeLinecap="round"/>
-  </svg>
-);
+// --- Screens ---
+import { LandingScreen } from './components/screens/LandingScreen.tsx';
+import { PickScreen } from './components/screens/PickScreen.tsx';
+import { ProvideScreen } from './components/screens/ProvideScreen.tsx';
+import { StoryScreen } from './components/header/StoryScreen.tsx';
+import { SettingsPage } from './components/header/SettingsPage.tsx';
 
-const GreenPlantDoodle: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
-  <svg width="88" height="73" viewBox="0 0 88 73" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
-    <path d="M31.2481 42.2816C29.4847 43.1562 25.2118 45.5407 20.0969 50.3178C16.8186 53.3797 14.5106 59.2482 12.9029 62.3439C11.2952 65.4397 11.5784 65.6973 11.9819 65.9845C12.8532 66.6048 13.7149 67.1572 15.0725 67.7541C20.0542 69.9444 30.9668 67.2907 37.4488 66.4573C38.7245 66.2933 40.1764 65.8931 41.2707 65.3485C45.6067 63.1904 47.7886 59.9319 50.6859 56.8373C52.5178 54.8807 52.5966 53.3287 52.8832 51.8189C53.3154 49.5425 52.6878 46.5713 52.4645 42.9927C52.2914 40.2185 56.3293 38.0522 56.4841 36.4129C56.7214 33.9008 55.188 30.7199 54.5619 29.5491C53.8989 28.3092 52.0129 27.7528 51.2225 27.2321C50.5492 26.7885 48.3977 27.4313 46.5483 27.9994C43.5221 28.9289 41.7165 30.8504 38.9605 32.693C36.7534 34.1687 34.5386 35.8297 32.7904 37.3147C32.4089 38.0137 32.1705 38.8476 31.9473 39.7291C31.8285 40.1476 31.6985 40.5077 31.5646 40.8786" stroke="#327919" strokeWidth="2" strokeLinecap="round"/>
-    <path d="M48.9654 25.3037C52.196 21.4229 54.4603 17.987 55.3571 16.7133C56.3982 15.2345 57.6166 13.7803 59.4084 11.6272C60.0906 10.8074 60.9402 10.1942 61.4506 9.5726C63.0095 7.67369 59.4445 5.93309 59.9357 4.81953C60.5752 3.37004 63.955 2.71147 65.2944 2.32452C66.8642 1.87105 68.7496 1.51863 70.6756 1.70134C73.3789 1.9578 74.4597 3.07862 75.5308 4.24826C77.1903 6.06056 69.626 7.59561 67.4699 8.78944C65.4046 9.93305 62.0883 13.7503 58.4197 16.9368C56.0709 18.9771 55.0571 21.2494 54.2921 22.6527C54.1601 23.0182 54.0302 23.3783 53.8077 23.8209C53.5852 24.2635 53.2742 24.7777 52.4051 25.7748" stroke="#327919" strokeWidth="2" strokeLinecap="round"/>
-    <path d="M33.8158 47.2735C31.8914 48.4098 29.385 50.7899 26.9915 53.2098C26.1636 54.0468 25.953 54.8498 25.5069 55.7303C24.9774 56.7755 26.1719 57.5536 27.3009 58.0997C28.4 58.6312 30.2314 58.755 31.8317 58.9639C33.0441 59.1222 34.9176 58.9201 37.4836 58.1196C39.6277 57.4507 40.8499 56.0179 41.9866 54.8005C43.915 52.7352 42.536 51.1892 42.2451 49.5479C42.1203 48.8439 41.1927 48.4266 40.4282 48.0103C39.9469 47.8516 39.2761 47.7995 37.8975 48.0289C36.519 48.2584 34.4531 48.7709 32.2472 48.9871" stroke="#327919" strokeWidth="2" strokeLinecap="round"/>
-    <path d="M31.6073 54.4436C31.4277 53.72 31.3781 51.7522 31.3317 50.2125C31.2907 48.8496 32.6882 47.2287 33.9862 44.867C35.4592 42.1872 36.5937 40.6309 38.3444 37.4417C39.7317 34.9144 42.0041 32.1167 43.5131 30.5785C45.0796 28.9817 46.6834 26.8699 48.1545 25.1788C48.7867 23.6958 49.3872 22.5535 50.0782 21.7762C50.4326 21.4101 50.7947 21.1017 51.0904 20.4721" stroke="#327919" strokeWidth="2" strokeLinecap="round"/>
-    <path d="M35.1313 52.576C35.7069 51.3339 37.994 46.3825 40.4299 42.7138C41.4699 41.1473 42.0924 39.5978 43.4025 37.7265C44.4625 36.2123 45.5753 33.118 47.2669 30.0925C47.5726 29.5167 47.6771 29.0537 48.2496 27.8124C48.8222 26.571 49.8597 24.5653 51.4773 22.0317" stroke="#327919" strokeWidth="2" strokeLinecap="round"/>
-    <path d="M38.4936 52.7352C39.354 51.7569 41.6451 46.7946 43.3739 42.9817C45.2913 38.7531 47.7074 37.2115 48.5211 35.1339C49.1165 33.6135 49.4391 31.7092 50.6966 29.6258C51.6709 28.1689 51.5935 26.9729 52.062 26.1961C52.4005 25.7793 52.9437 25.3168 53.4259 24.5283" stroke="#327919" strokeWidth="2" strokeLinecap="round"/>
-  </svg>
-);
+import { GalleryScreen } from './components/header/GalleryPage.tsx';
+import { YourJamScreen } from './components/header/YourJamPage.tsx';
+import { ExploreScreen } from './components/screens/ExplorePage.tsx';
+import { INSTRUMENTS, getInstrumentIcon } from './services/constants.tsx';
 
+<<<<<<< Updated upstream:App.tsx
 const BrownPianoDoodle: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className, style }) => (
   <svg width="85" height="45" viewBox="0 0 85 45" fill="none" xmlns="http://www.w3.org/2000/svg" className={className} style={style}>
     <path d="M3.84506 7.00896C3.68502 8.57175 3.12246 14.0652 2.48532 21.5728C2.01505 27.1141 3.77504 31.0722 3.9075 33.6364C3.95921 34.6373 4.94988 35.0304 5.98775 35.2994C8.25115 35.886 10.9586 36.129 21.7702 37.4755C31.2762 38.6593 49.0174 40.3471 58.5463 41.244C68.8642 42.2151 70.477 42.0662 72.0606 42.1494C77.7294 42.4472 81.2101 35.9968 81.5828 33.7212C81.9659 31.3821 80.1692 28.0805 79.9976 25.821C79.7537 22.6096 80.7631 16.9818 82.0116 13.9083C82.6833 12.2546 82.2092 10.7319 81.5041 9.86289C78.3345 5.95659 61.1025 6.81418 52.4275 5.68414C44.0191 4.58884 32.4026 3.86557 26.7731 4.09063C23.2968 4.22961 19.5883 4.15162 15.4364 4.36529C13.6942 4.50511 12.0743 4.65984 9.95316 4.68189C8.62992 4.62774 6.80551 4.44091 3.29776 4.56023" stroke="#966D6D" strokeWidth="2" strokeLinecap="round"/>
@@ -294,132 +306,69 @@ const StoryPage: React.FC<{ onBack: () => void }> = ({ onBack }) => (
 );
 
 // --- Main App Component ---
+=======
+// --- Player Components ---
+import BlueprintDisplay from './components/player/BlueprintDisplay.tsx';
+import CameraScanner from './components/player/CameraScanner.tsx';
+import InstrumentPlayer from './components/player/InstrumentPlayer.tsx';
+import ResultScreen from './components/player/ResultScreen.tsx';
+>>>>>>> Stashed changes:App_V2.tsx
 
 const App: React.FC = () => {
-  const [step, setStep] = React.useState<'landing' | 'pick' | 'provide' | 'scan' | 'play' | 'result' | 'blueprint' | 'story' | 'gallery' | 'settings' | 'yourJam' | 'explore'>('landing');
-  const [selectedType, setSelectedType] = React.useState<InstrumentType | null>(null);
-  const [blueprint, setBlueprint] = React.useState<InstrumentBlueprint | null>(null);
-  const [hitZones, setHitZones] = React.useState<HitZone[]>([]);
-  const [recording, setRecording] = React.useState<Blob | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [sessionStats, setSessionStats] = React.useState<SessionStats | null>(null);
+  const flow = useAppFlow();
+  const { 
+    step, setStep, goHome, 
+    selectedType, isLoading, error, 
+    blueprint, hitZones, recording, sessionStats,
+    handlePick, handleCreateCustom, handleShowBlueprint, 
+    handleQuickStart, handleCapture, handleFinishedPlaying 
+  } = flow;
 
-  // Toggle orientation classes on the body based on the current step
-  useEffect(() => {
-    // Only screens that use the camera should enforce landscape mode
-    if (step === 'scan' || step === 'play') {
-      document.body.classList.add('needs-landscape');
-    } else {
-      document.body.classList.remove('needs-landscape');
+  const isSubPage = ['story', 'gallery', 'settings', 'yourJam', 'explore', 'pick', 'provide', 'result', 'blueprint', 'scan'].includes(step);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        handleCapture(base64);
+      };
+      reader.readAsDataURL(file);
     }
-    // Cleanup on unmount
-    return () => {
-      document.body.classList.remove('needs-landscape');
-    };
-  }, [step]);
-
-  const handlePick = (type: InstrumentType) => {
-    setSelectedType(type);
-    setStep('provide');
-  };
-
-  const handleCreateCustom = (name: string) => {
-    setSelectedType(name);
-    setStep('provide');
-  };
-
-  const handleShowBlueprint = async () => {
-    if (!selectedType) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const bp = await generateBlueprint(selectedType);
-      setBlueprint(bp);
-      setStep('blueprint');
-    } catch (err) {
-      setError("Gemini is composing... try again!");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleQuickStart = () => {
-    if (!selectedType) return;
-    // For custom instruments, PRESET_ZONES might be empty, so we default to a generic set if needed or require scanning
-    const zones = PRESET_ZONES[selectedType] || PRESET_ZONES['Piano']; 
-    setHitZones(zones);
-    setStep('play');
-  };
-
-  const handleCapture = async (base64: string) => {
-    if (!selectedType) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const zones = await scanDrawing(selectedType, base64);
-      setHitZones(zones);
-      setStep('play');
-    } catch (err) {
-      setError("Make sure your drawing is clear!");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleFinishedPlaying = (blob: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number; eventLog: PerformanceEvent[] }) => {
-    if (selectedType) {
-      setSessionStats({
-        instrument: selectedType,
-        durationSeconds: Math.round(stats.duration),
-        noteCount: stats.noteCount,
-        uniqueNotesCount: stats.uniqueNotes.size,
-        intensity: stats.noteCount / (stats.duration || 1),
-        eventLog: stats.eventLog
-      });
-    }
-    setRecording(blob);
-    setStep('result');
-  };
-
-  const goHome = () => {
-    setStep('landing');
-    setSelectedType(null);
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center overflow-x-hidden relative text-center">
       <BackgroundElements />
+      
       <GlobalHeader 
         onHome={goHome} 
         onStory={() => setStep('story')} 
-        onGallery={() => { setStep('gallery'); }}
+        onGallery={() => setStep('gallery')}
         onYourJam={() => setStep('yourJam')}
         onSettings={() => setStep('settings')}
+        onExplore={() => setStep('explore')}
         currentStep={step} 
       />
       
       {/* Persistent Decorative Elements */}
       {(step === 'landing' || step === 'pick' || step === 'result' || step === 'story' || step === 'gallery' || step === 'settings' || step === 'yourJam' || step === 'explore') && (
-        <div className="absolute inset-0 pointer-events-none z-30">
+        <div className="absolute inset-0 pointer-events-none z-0">
           <ScribbleDoodle className="absolute left-[5%] top-[12%] w-[180px] opacity-60 animate-float" style={{ animationDuration: '12s' }} />
           <WaveDoodle className="absolute right-[-10%] top-[10%] w-[600px] opacity-40 animate-drift" />
           <GreenPlantDoodle className="absolute left-[10%] bottom-[45%] w-[150px] opacity-80 animate-wobble" />
           <BrownPianoDoodle className="absolute right-[12%] bottom-[50%] w-[220px] opacity-70 rotate-[15deg] animate-float" />
           <PurpleClusterDoodle className="absolute left-[20%] top-[35%] w-[110px] opacity-70 animate-pulse" style={{ animationDuration: '4s' }} />
           <GreenPlantDoodle className="absolute right-[25%] top-[35%] w-[90px] opacity-40 -rotate-12 animate-float" />
-          
           <MessySun className="absolute right-[5%] top-[5%] opacity-60 animate-pulse" />
           <ShakyStar className="absolute left-[15%] top-[45%] opacity-50 animate-orbit" style={{ animationDuration: '15s' }} />
           <CrayonSpiral className="absolute right-[10%] bottom-[15%] opacity-40 animate-float" style={{ animationDuration: '20s' }} />
           <ShakyHeart className="absolute left-[8%] top-[25%] opacity-60 animate-wobble" />
-          <ShakyStar className="absolute right-[20%] top-[40%] opacity-40 rotate-45 animate-float" style={{ animationDuration: '10s' }} />
-          <MessySun className="absolute left-[5%] bottom-[5%] opacity-40 rotate-180 animate-pulse" style={{ animationDuration: '5s' }} />
-          <ShakyHeart className="absolute right-[25%] bottom-[30%] opacity-50 -rotate-12 animate-orbit" style={{ animationDuration: '25s' }} />
-          <CrayonSpiral className="absolute left-[30%] top-[10%] opacity-30 animate-drift" />
         </div>
       )}
 
+<<<<<<< Updated upstream:App.tsx
       {step === 'landing' && (
         <div className="w-full min-h-screen flex flex-col items-center justify-between relative overflow-hidden">
           <CurvedLineDoodle className="absolute left-[-5%] top-[30%] w-[500px] opacity-[0.07] -rotate-12 pointer-events-none z-0" />
@@ -581,23 +530,225 @@ const App: React.FC = () => {
         {step === 'play' && hitZones.length > 0 && selectedType && (
           <InstrumentPlayer instrumentType={selectedType} hitZones={hitZones} onExit={handleFinishedPlaying} />
         )}
+=======
+      <main className={`flex-1 w-full flex flex-col items-center ${isSubPage ? 'pt-40 pb-32' : ''}`}>
+>>>>>>> Stashed changes:App_V2.tsx
         
-        {step === 'result' && (
-          <div className="w-full flex flex-col items-center pb-24 relative">
-             <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
-               <RedMonster className="w-full h-full" />
-             </div>
-             <div className="relative z-10 w-full flex justify-center">
-               <ResultScreen recording={recording} onRestart={() => setStep('pick')} stats={sessionStats} />
+        {/* Red Monster Positioning: Default peeking behavior for generic scan/play/result sub-pages */}
+        {isSubPage && !['story', 'gallery', 'yourJam', 'settings', 'pick', 'provide', 'explore', 'landing','result'].includes(step) && (
+          <div className="w-full flex justify-center mb-0 mt-4 animate-in fade-in slide-in-from-top-4 duration-700 relative z-0">
+             <div className="w-24 md:w-40 h-16 md:h-28 overflow-hidden flex items-start justify-center">
+                <div className="w-32 md:w-56 aspect-[1514/770] drop-shadow-xl transform -translate-y-2">
+                   <RedMonster className="w-full h-full" />
+                </div>
              </div>
           </div>
         )}
-      </div>
+
+        <div className="relative z-10 w-full flex flex-col items-center px-4">
+          {error && (
+            <div className="bg-red-100 border-4 border-red-200 text-red-600 p-6 rounded-[2rem] mb-12 flex items-center gap-3 animate-bounce shadow-xl font-black uppercase tracking-widest max-w-2xl">
+              <span>⚠️ {error}</span>
+            </div>
+          )}
+
+          {step === 'landing' && <LandingScreen onStart={() => setStep('pick')} />}
+          
+          {step === 'pick' && (
+            <div className="flex flex-col items-center w-full min-h-[calc(100vh-200px)] justify-start pb-48">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 w-full max-w-4xl py-12 animate-in slide-in-from-bottom-10 duration-700 relative z-50 grid-auto-rows-fr">
+                {INSTRUMENTS.map((inst) => (
+                  <button
+                    key={inst.type}
+                    onClick={() => handlePick(inst.type)}
+                    className={`${inst.color} h-full p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center border-[12px] border-white/30 group`}
+                  >
+                    <div className="w-40 h-40 mb-6 drop-shadow-2xl group-hover:animate-wobble flex items-center justify-center">
+                      {inst.icon}
+                    </div>
+                    <span className="text-4xl font-black text-white uppercase tracking-widest mt-auto">{inst.type}</span>
+                  </button>
+                ))}
+                
+                <button
+                  onClick={() => { setStep('explore'); }}
+                  className={`bg-orange-400 h-full p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center border-[12px] border-white/30 group`}
+                >
+                  <div className="w-40 h-40 mb-6 drop-shadow-2xl group-hover:animate-pulse flex items-center justify-center">
+                    <span className="text-[120px]">🧭</span>
+                  </div>
+                  <span className="text-4xl font-black text-white uppercase tracking-widest mt-auto">Explore</span>
+                </button>
+              </div>
+              
+              <div className="fixed bottom-0 left-0 right-0 h-[30vh] overflow-hidden pointer-events-none z-10 opacity-80 translate-y-[15%]">
+                <RedMonster className="w-full h-full" />
+              </div>
+            </div>
+          )}
+          
+          {step === 'provide' && selectedType && (
+            <div className="flex flex-col items-center gap-12 py-12 animate-in fade-in duration-500 relative w-full max-w-4xl">
+              <button 
+                onClick={() => setStep('pick')}
+                className="bg-white/40 backdrop-blur-md text-[#1e3a8a] px-8 py-3 rounded-full font-black uppercase tracking-widest text-sm flex items-center gap-2 shadow-lg hover:scale-110 transition-transform border-4 border-white mb-2"
+              >
+                <span>←</span> Change Instrument
+              </button>
+              
+              <div className="w-32 h-32 md:w-48 md:h-48 drop-shadow-2xl animate-wobble -mb-4">
+                 {getInstrumentIcon(selectedType)}
+              </div>
+              
+              <h2 className="text-4xl md:text-6xl font-black text-white drop-shadow-xl uppercase tracking-tighter text-center">
+                Choose Your Path: {selectedType}
+              </h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-2xl">
+                <button onClick={() => setStep('scan')} className="bg-white p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 hover:scale-110 transition-transform border-[8px] border-sky-200 group">
+                  <span className="text-8xl group-hover:scale-125 transition-transform">📷</span>
+                  <span className="text-2xl font-black text-sky-600 uppercase tracking-widest">Scan Drawing</span>
+                </button>
+                <button onClick={handleQuickStart} className="bg-yellow-400 p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 hover:scale-110 transition-transform border-[8px] border-yellow-200 group">
+                  <span className="text-8xl group-hover:animate-bounce">⚡</span>
+                  <span className="text-2xl font-black text-yellow-900 uppercase tracking-widest">Instant Magic</span>
+                </button>
+              </div>
+
+              <div className="w-full h-1 bg-white/20 my-4 rounded-full max-w-xl" />
+
+              <div className="flex flex-col items-center gap-6 mb-12">
+                <label className="cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-white px-10 py-4 rounded-full font-black uppercase tracking-widest shadow-[0_6px_0_#065f46] transition-all hover:translate-y-1 active:shadow-none flex items-center gap-3">
+                  <input 
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*" 
+                    onChange={handleFileUpload}
+                  />
+                  <span>📁</span> Upload Drawing Instead
+                </label>
+
+                <button 
+                  onClick={handleShowBlueprint} 
+                  className="text-white text-xl underline font-black uppercase tracking-[0.2em] hover:text-[#1e3a8a] transition-colors py-4"
+                >
+                  Wait, I need a blueprint guide!
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'blueprint' && blueprint && (
+            <div className="flex flex-col items-center gap-12 w-full max-w-4xl py-12 animate-in zoom-in-95 duration-500">
+              <BlueprintDisplay blueprint={blueprint} />
+              
+              <div className="flex flex-wrap justify-center gap-8">
+                <button
+                  onClick={() => setStep('scan')}
+                  className="px-12 py-7 bg-blue-500 text-white rounded-full text-2xl font-black shadow-[0_10px_0_#1e3a8a] hover:bg-blue-600 transition-all hover:translate-y-1 active:shadow-none uppercase tracking-widest flex items-center gap-4"
+                >
+                  <span>📸</span> OPEN CAMERA
+                </button>
+                <button
+                  onClick={handleQuickStart}
+                  className="px-12 py-7 bg-yellow-500 text-white rounded-full text-2xl font-black shadow-[0_10px_0_#ca8a04] hover:bg-yellow-600 transition-all hover:translate-y-1 active:shadow-none uppercase tracking-widest flex items-center gap-4"
+                >
+                  <span>⚡</span> TRY DEMO
+                </button>
+              </div>
+              
+              <button 
+                onClick={goHome} 
+                className="text-[#1e3a8a] font-black uppercase tracking-[0.3em] text-sm hover:underline"
+              >
+                Back to Start
+              </button>
+            </div>
+          )}
+
+          {step === 'story' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+               <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                 <RedMonster className="w-full h-full" />
+               </div>
+               <StoryScreen onBack={goHome} />
+            </div>
+          )}
+
+          {step === 'gallery' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+               <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                 <RedMonster className="w-full h-full" />
+               </div>
+               <div className="relative z-10 w-full flex justify-center">
+                 <GalleryScreen onBack={goHome} />
+               </div>
+            </div>
+          )}
+
+          {step === 'yourJam' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+               <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                 <RedMonster className="w-full h-full" />
+               </div>
+               <div className="relative z-10 w-full flex justify-center">
+                 <YourJamScreen onBack={goHome} />
+               </div>
+            </div>
+          )}
+
+          {step === 'explore' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                 <RedMonster className="w-full h-full" />
+               </div>
+              <ExploreScreen onBack={() => setStep('pick')} onCreateCustom={handleCreateCustom} />
+            </div>
+          )}
+          
+          {step === 'settings' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+               <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                 <RedMonster className="w-full h-full" />
+               </div>
+               <SettingsPage onBack={() => setStep('landing')} />
+            </div>
+          )}
+
+          {step === 'scan' && (
+            <div className="w-full flex flex-col items-center gap-10 py-12">
+              <h2 className="text-4xl md:text-6xl font-black text-white drop-shadow-xl uppercase tracking-tighter">Scan Your Paper</h2>
+              <CameraScanner onCapture={handleCapture} isScanning={isLoading} />
+              <button 
+                onClick={() => setStep('provide')} 
+                className="text-white/60 font-black uppercase tracking-widest text-lg hover:text-white transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          )}
+          
+          {/* Fix: Pass missing required prop instrumentType and ensure selectedType exists */}
+          {step === 'play' && hitZones.length > 0 && selectedType && (
+            <InstrumentPlayer 
+              instrumentType={selectedType} 
+              hitZones={hitZones} 
+              onExit={handleFinishedPlaying} 
+            />
+          )}
+          
+          {step === 'result' && (
+            <ResultScreen recording={recording} onRestart={goHome} stats={sessionStats} />
+          )}
+        </div>
+      </main>
 
       {isLoading && (
-        <div className="fixed inset-0 bg-[#1e3a8a]/70 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center">
+        <div className="fixed inset-0 bg-[#1e3a8a]/70 backdrop-blur-2xl z-[200] flex flex-col items-center justify-center p-6 text-center">
           <div className="w-32 h-32 border-[12px] border-white border-t-transparent rounded-full animate-spin mb-8" />
-          <p className="text-white font-black animate-pulse text-4xl uppercase tracking-[0.3em]">Magical things are happening...</p>
+          <p className="text-white font-black animate-pulse text-4xl uppercase tracking-[0.3em] max-w-3xl">
+            {step === 'pick' || step === 'provide' ? 'Preparing the blueprint...' : 'Gemini is reading your drawing...'}
+          </p>
         </div>
       )}
     </div>

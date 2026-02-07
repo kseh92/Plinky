@@ -1,7 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+<<<<<<< Updated upstream:components/InstrumentPlayer_V2.tsx
 import { HitZone, PerformanceEvent, InstrumentType } from '../services/types';
 import { toneService } from '../services/toneService';
+=======
+import { HitZone, PerformanceEvent, InstrumentType } from '../../services/types';
+import { toneService } from '../../services/toneService';
+>>>>>>> Stashed changes:components/player/InstrumentPlayer_V2.tsx
 
 interface Particle {
   x: number;

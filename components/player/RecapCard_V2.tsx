@@ -1,5 +1,5 @@
 import React from 'react';
-import { RecapData } from '../services/types';
+import { RecapData } from '../../services/types';
 
 interface Props {
   recap: RecapData;

@@ -297,4 +297,8 @@ export async function* generateStudioMusicStream(
     console.error("Studio stream generation failed:", err);
     throw err;
   }
+<<<<<<< Updated upstream
 }
+=======
+}
+>>>>>>> Stashed changes

@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { InstrumentBlueprint } from '../services/types';
+import { InstrumentBlueprint } from '../../services/types';
 
 interface Props {
   blueprint: InstrumentBlueprint;

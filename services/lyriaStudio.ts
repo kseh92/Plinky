@@ -13,7 +13,7 @@ export interface LyriaStartPayload {
 }
 
 export const defaultLyriaWsUrl = () => {
-  const apiKey = import.meta.env.GEMINI_API_KEY;
+  const apiKey = process.env.API_KEY || import.meta.env.GEMINI_API_KEY || "";
   if (!apiKey) return '';
   return `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateMusic?key=${apiKey}`;
 };

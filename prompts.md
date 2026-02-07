@@ -35,3 +35,7 @@
 ## 2026-02-07: Recap UI Cleanup
 - **Prompt**: "Reverb/Distortion/Compressor are not necessary to show to user... keep these for Studio Mix purpose but let's not show it to the user in the result screen."
 - **Result**: Removed the mixing metrics UI from `RecapCard_V2.tsx` while keeping mix settings for Studio Mix.
+
+## 2026-02-07: AI Composer Reliability & Share UX
+- **Prompt**: "AI Composer should appear when the Recap generation is successful... Remove TTS streaming, use Lyria, fix errors, improve recap logging, and adjust sharing UX."
+- **Result**: Refactored Lyria composer logic into `services/aiComposer.ts` using the SDK live client, fixed invalid WS config fields, added detailed composer logging, parallelized recap + mix, made album jacket lazy, added availability filtering, moved share to direct Web Share API, and showed share only after mix finished. 

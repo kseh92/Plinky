@@ -84,23 +84,6 @@ const RecapCard: React.FC<Props> = ({ recap }) => {
           <div className="flex-1 h-[2px] bg-gradient-to-l from-transparent to-sky-400/40" />
         </div>
 
-        {recap.mixingSuggestion && (
-          <div className="w-full bg-white/5 p-4 md:p-6 rounded-[2rem] border border-white/10 mb-8 md:mb-12 grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 text-[9px] md:text-[11px] font-bold uppercase text-sky-300 tracking-[0.2em]">
-             <div className="flex flex-col items-center p-3 md:p-4 bg-black/40 rounded-2xl border border-white/5 shadow-inner">
-                <span className="opacity-60 mb-1">Reverb</span>
-                <span className="text-white text-base md:text-lg">{Math.round(recap.mixingSuggestion.reverbAmount * 100)}%</span>
-             </div>
-             <div className="flex flex-col items-center p-3 md:p-4 bg-black/40 rounded-2xl border border-white/5 shadow-inner">
-                <span className="opacity-60 mb-1">Distortion</span>
-                <span className="text-white text-base md:text-lg">{Math.round(recap.mixingSuggestion.distortionAmount * 100)}%</span>
-             </div>
-             <div className="flex flex-col items-center p-3 md:p-4 bg-black/40 rounded-2xl border border-white/5 shadow-inner col-span-2 md:col-span-1">
-                <span className="opacity-60 mb-1">Compressor</span>
-                <span className="text-white text-base md:text-lg">{recap.mixingSuggestion.compressionThreshold}dB</span>
-             </div>
-          </div>
-        )}
-
         <div className="w-full space-y-6 md:space-y-10">
           <div className="flex items-center gap-4 mb-2 md:mb-4">
              <span className="text-[10px] md:text-sm font-black text-sky-400 uppercase tracking-[0.4em] pl-2 whitespace-nowrap">Studio Picks</span>
@@ -146,33 +129,12 @@ const RecapCard: React.FC<Props> = ({ recap }) => {
           </div>
         </div>
 
-        {/* Google Search Citations */}
-        {recap.groundingChunks && recap.groundingChunks.length > 0 && (
-          <div className="mt-12 w-full pt-8 border-t border-white/10">
-            <p className="text-[10px] font-black text-sky-400 uppercase tracking-widest mb-4">Sources & Grounding</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-               {recap.groundingChunks.map((chunk, i) => (
-                 chunk.web && (
-                   <a 
-                    key={i} 
-                    href={chunk.web.uri} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[10px] text-sky-200/50 hover:text-sky-400 truncate flex items-center gap-2 bg-white/5 p-2 rounded-lg border border-white/5 transition-colors"
-                   >
-                     <span>🔗</span> {chunk.web.title || chunk.web.uri}
-                   </a>
-                 )
-               ))}
-            </div>
-          </div>
-        )}
       </div>
       
       {/* Decorative footer line */}
       <div className="mt-12 md:mt-16 w-full h-[1px] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
       <div className="mt-4 text-center text-sky-500/40 text-[8px] md:text-[10px] font-black tracking-[0.5em] uppercase">
-        Powered by Google Gemini 3.0 & Google Search
+        Powered by Google Gemini 3.0
       </div>
     </div>
   );

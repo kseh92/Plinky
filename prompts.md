@@ -27,3 +27,15 @@
 ## 2026-02-07: Merge Resolution, Harp Sound, Imports, and Doodles
 - **Prompt**: "First of all, I want to improve the sound of playing Harp. Now it sounds the same as playing piano. Any way to make the sound more like harp?"
 - **Result**: Resolved merge conflicts across the app, rebuilt the harp synth chain with harp-specific FX, fixed harp note routing (`harp:` tags + instrument-aware playback), normalized import paths, and moved/implemented doodles and crayon doodles in `components/decor` for proper App imports.
+
+## 2026-02-07: Studio Mix Overhaul, Recap Fixes, and Recommendation Filtering
+- **Prompt**: "I want to improve the studio mix function... Can I use Music generation using Lyria RealTime... AI composer should show after the studio analysis and recommendations are complete."
+- **Result**: Replaced the old Studio Mix replay with Lyria RealTime streaming in-browser (PCM16 to WAV). Added AI Composer gating until recap is ready, improved recap generation progress logs, fixed album jacket generation with `generateImages`, removed Google Search citations, and over-generated recommendations with browser availability checks to keep 3 playable tracks.
+
+## 2026-02-07: Recap UI Cleanup
+- **Prompt**: "Reverb/Distortion/Compressor are not necessary to show to user... keep these for Studio Mix purpose but let's not show it to the user in the result screen."
+- **Result**: Removed the mixing metrics UI from `RecapCard_V2.tsx` while keeping mix settings for Studio Mix.
+
+## 2026-02-07: AI Composer Reliability & Share UX
+- **Prompt**: "AI Composer should appear when the Recap generation is successful... Remove TTS streaming, use Lyria, fix errors, improve recap logging, and adjust sharing UX."
+- **Result**: Refactored Lyria composer logic into `services/aiComposer.ts` using the SDK live client, fixed invalid WS config fields, added detailed composer logging, parallelized recap + mix, made album jacket lazy, added availability filtering, moved share to direct Web Share API, and showed share only after mix finished. 

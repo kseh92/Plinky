@@ -1,7 +1,10 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { SessionStats, RecapData } from '../../services/types';
+import { SessionStats, RecapData, PerformanceEvent } from '../../services/types';
 import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../../services/geminiService';
 import { toneService } from '../../services/toneService';
+import { concatUint8Arrays, encodeWavFromPcm16 } from '../../services/lyriaStudio';
+import { filterPlayableTracks } from '../../services/youtubeAvailability';
+import { startLyriaComposer } from '../../services/aiComposer';
 import RecapCard from './RecapCard_V2';
 
 interface Props {
@@ -48,15 +51,18 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [accurateDuration, setAccurateDuration] = useState<number | null>(null);
   const [isMeasuring, setIsMeasuring] = useState(true);
   const [isMixing, setIsMixing] = useState(false);
+  const [recapStage, setRecapStage] = useState<string>('');
   const [recapError, setRecapError] = useState<string | null>(null);
   const [recapErrorDetails, setRecapErrorDetails] = useState<string | null>(null);
-  const [showShareModal, setShowShareModal] = useState(false);
 
   // Studio Mix states
-  const [isPlayingMix, setIsPlayingMix] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
   const [studioMixBlob, setStudioMixBlob] = useState<Blob | null>(null);
-  const [recordingProgress, setRecordingProgress] = useState(0);
-  const progressIntervalRef = useRef<number | null>(null);
+  const [composerProgress, setComposerProgress] = useState(0);
+  const [composerError, setComposerError] = useState<string | null>(null);
+  const composerChunksRef = useRef<Uint8Array[]>([]);
+  const composerLiveRef = useRef<any>(null);
+  const composerTimerRef = useRef<number | null>(null);
 
   const audioUrl = useMemo(() => {
     if (!recording) return null;
@@ -98,36 +104,61 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       if (!stats || isMeasuring || accurateDuration === null) return;
       setIsRecapLoading(true);
       setIsMixing(true);
+      setRecapStage('Generating recap...');
       setRecapError(null);
       setRecapErrorDetails(null);
       try {
-        const recapData = await generateSessionRecap({
+        const start = performance.now();
+        console.info('[Result] Recap generation started');
+
+        const recapPromise = generateSessionRecap({
           ...stats,
           durationSeconds: accurateDuration,
           intensity: stats.noteCount / (accurateDuration || 1)
         });
 
+        setRecapStage('Analyzing mix...');
+        const mixPromise = generateMixSettings(stats.eventLog || [], stats.instrument);
+
+        const recapData = await recapPromise;
+        console.info('[Result] Recap data received');
         const finalRecap: RecapData = { ...recapData };
 
         try {
-          const mixData = await generateMixSettings(stats.eventLog || [], stats.instrument);
+          const mixData = await mixPromise;
+          console.info('[Result] Mix settings received');
           finalRecap.genre = mixData.genre;
           finalRecap.trackTitle = mixData.trackTitle;
           finalRecap.mixingSuggestion = mixData.mix;
           finalRecap.extendedEventLog = mixData.extendedEventLog;
           toneService.applyMixingPreset(mixData.mix);
         } catch (err) {
-          console.warn('Mix settings generation failed', err);
+          console.warn('[Result] Mix settings generation failed', err);
         }
 
         try {
-          const jacketUrl = await generateAlbumJacket({ ...stats }, finalRecap);
-          finalRecap.personalJacketUrl = jacketUrl;
+          setRecapStage('Checking YouTube Music availability...');
+          finalRecap.recommendedSongs = await filterPlayableTracks(finalRecap.recommendedSongs || []);
+          console.info('[Result] Availability check complete');
         } catch (err) {
-          console.warn("Album jacket generation failed", err);
+          console.warn('[Result] Availability check failed', err);
         }
 
+        // Show recap ASAP; jacket loads lazily after recap is visible.
         setRecap(finalRecap);
+        console.info('[Result] Recap rendered');
+
+        try {
+          setRecapStage('Generating album jacket...');
+          const jacketUrl = await generateAlbumJacket({ ...stats }, finalRecap);
+          finalRecap.personalJacketUrl = jacketUrl;
+          setRecap({ ...finalRecap });
+          console.info('[Result] Album jacket received');
+        } catch (err) {
+          console.warn('[Result] Album jacket generation failed', err);
+        }
+
+        console.info(`[Result] Recap flow finished in ${Math.round(performance.now() - start)}ms`);
       } catch (err: any) {
         console.error("Studio processing failed", err);
         const details =
@@ -139,6 +170,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       } finally {
         setIsRecapLoading(false); 
         setIsMixing(false); 
+        setRecapStage('');
       }
     };
     fetchAIAssistance();
@@ -156,50 +188,136 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     if (!studioMixUrl) return;
     const a = document.createElement('a');
     a.href = studioMixUrl;
-    a.download = `studio_${recap?.trackTitle || 'mix'}.webm`;
+    a.download = `studio_${recap?.trackTitle || 'mix'}.wav`;
     a.click();
   };
 
-  const handleReplayStudioMix = async () => {
-    if (recap?.extendedEventLog) {
-      setIsPlayingMix(true);
-      setRecordingProgress(0);
-      setStudioMixBlob(null);
+  const handleShare = async () => {
+    const title = recap?.trackTitle || 'My Studio Mix';
+    const text = `Check out my studio mix: ${title}`;
+    const shareUrl = studioMixUrl || audioUrl || window.location.href;
 
-      // Start recording the studio session
-      await toneService.init();
-      await toneService.startRecording();
-      toneService.replayEventLog(recap.extendedEventLog);
+    try {
+      if (studioMixBlob && navigator.canShare?.({ files: [new File([studioMixBlob], `${title}.wav`, { type: 'audio/wav' })] })) {
+        const file = new File([studioMixBlob], `${title}.wav`, { type: 'audio/wav' });
+        await navigator.share({ title, text, files: [file] });
+        return;
+      }
 
-      const startTime = Date.now();
-      const durationMs = 60000;
+      if (navigator.share) {
+        await navigator.share({ title, text, url: shareUrl });
+        return;
+      }
 
-      progressIntervalRef.current = window.setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(100, (elapsed / durationMs) * 100);
-        setRecordingProgress(progress);
-        
-        if (elapsed >= durationMs) {
-          stopStudioMix();
-        }
-      }, 100);
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        return;
+      }
+    } catch (err) {
+      console.warn('Share failed', err);
     }
   };
 
-  const stopStudioMix = async () => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
+  const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
+
+  const finalizeComposer = () => {
+    const pcm = concatUint8Arrays(composerChunksRef.current);
+    if (!pcm.length) {
+      console.warn('[Composer] No audio chunks received');
+      setComposerError('No audio was generated. Please try again.');
+      return;
     }
-    
-    toneService.stopAll();
-    const result = await toneService.stopRecording();
-    if (result) {
-      setStudioMixBlob(result.blob);
-    }
-    setIsPlayingMix(false);
-    setRecordingProgress(0);
+    console.info(`[Composer] Finalizing WAV with ${pcm.length} bytes`);
+    const sampleRate = 48000;
+    const wavBuffer = encodeWavFromPcm16(pcm, sampleRate, 2);
+    const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+    setStudioMixBlob(blob);
   };
+
+  const stopAIComposer = () => {
+    if (composerTimerRef.current) {
+      clearInterval(composerTimerRef.current);
+      composerTimerRef.current = null;
+    }
+
+    const live = composerLiveRef.current;
+    if (live && typeof live.stop === 'function') {
+      try {
+        live.stop();
+      } catch (err) {
+        console.warn('[Composer][SDK] Stop failed', err);
+      }
+    }
+
+    setIsComposing(false);
+    setComposerProgress(0);
+    composerLiveRef.current = null;
+
+    window.setTimeout(finalizeComposer, 150);
+  };
+
+  const startAIComposer = () => {
+    if (!stats || !recap || isComposing) return;
+
+    setComposerError(null);
+    setStudioMixBlob(null);
+    setIsComposing(true);
+    setComposerProgress(0);
+    composerChunksRef.current = [];
+
+    const durationSec = clamp(Math.round(accurateDuration || stats.durationSeconds || 30), 20, 60);
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      setComposerError('Missing VITE_GEMINI_API_KEY. Set it to use the AI composer.');
+      setIsComposing(false);
+      return;
+    }
+
+    console.info('[Composer] Connecting via SDK live client');
+    (async () => {
+      try {
+        const live = await startLyriaComposer(stats, recap, stats.eventLog || [], {
+          apiKey,
+          onChunk: (chunk) => {
+            composerChunksRef.current.push(chunk);
+          },
+          onMessage: (message) => {
+            console.debug('[Composer][SDK] Message', message);
+          },
+          onError: (err) => {
+            console.error('[Composer][SDK] Error', err);
+            setComposerError('Composer connection failed.');
+            stopAIComposer();
+          },
+          onClose: () => {
+            console.warn('[Composer][SDK] Closed');
+          }
+        });
+
+        composerLiveRef.current = live;
+        console.info('[Composer][SDK] Connected and playing');
+      } catch (err) {
+        console.error('[Composer][SDK] Init failed', err);
+        setComposerError('Composer connection failed.');
+        stopAIComposer();
+        return;
+      }
+    })();
+
+    // Raw WebSocket path is intentionally disabled; SDK is the source of truth.
+
+    const startTime = Date.now();
+    composerTimerRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(100, (elapsed / (durationSec * 1000)) * 100);
+      setComposerProgress(progress);
+      if (elapsed >= durationSec * 1000) {
+        stopAIComposer();
+      }
+    }, 100);
+  };
+
+  const isComposerReady = Boolean(recap) && !isRecapLoading && !isMeasuring && !isMixing;
 
   return (
     <div className="flex flex-col items-center w-full max-w-5xl mx-auto p-6 md:p-16 bg-white/40 backdrop-blur-xl rounded-[4rem] md:rounded-[6rem] shadow-2xl border-[8px] md:border-[16px] border-white/60 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -244,6 +362,11 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
             <p className="text-[#1e3a8a] font-black animate-pulse uppercase tracking-[0.3em] text-center px-8 text-base md:text-xl">
               {isMeasuring ? 'Syncing Your Vibe...' : 'Magically generating your album jacket...'}
             </p>
+            {recapStage && !isMeasuring && (
+              <p className="mt-4 text-[#1e3a8a]/70 font-black uppercase tracking-[0.2em] text-xs md:text-sm text-center">
+                {recapStage}
+              </p>
+            )}
           </div>
         ) : recap ? (
           <div className="animate-in fade-in duration-1000">
@@ -260,75 +383,110 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
           </div>
         ) : null}
 
+        {recap && !recapError && !isRecapLoading && !isMeasuring && (
         <div className="w-full bg-[#1e3a8a]/5 p-8 md:p-14 rounded-[4rem] md:rounded-[5rem] flex flex-col items-center border-[6px] md:border-[8px] border-white shadow-inner relative overflow-hidden">
-          {isPlayingMix && (
-            <div className="absolute top-0 left-0 h-3 bg-[#FF6B6B] transition-all duration-100 shadow-[0_0_20px_#FF6B6B]" style={{ width: `${recordingProgress}%` }} />
+          {isComposing && (
+            <div
+              className="absolute top-0 left-0 h-3 bg-[#FF6B6B] transition-all duration-100 shadow-[0_0_20px_#FF6B6B]"
+              style={{ width: `${composerProgress}%` }}
+            />
           )}
-          
-          <div className="flex flex-col gap-8 md:gap-12 w-full">
-               {!isPlayingMix ? (
-                 <div className="flex flex-col gap-6 w-full">
-                   <button
-                      onClick={handleReplayStudioMix}
-                      disabled={!recap?.extendedEventLog}
-                      className="group relative w-full py-8 md:py-12 bg-[#1e3a8a] hover:bg-[#2a4db3] text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#020A20] md:shadow-[0_16px_0_#020A20] hover:translate-y-[4px] md:hover:translate-y-[8px] active:shadow-none active:translate-y-[10px] md:active:translate-y-[16px] transition-all duration-150 transform hover:scale-102 flex items-center justify-center gap-6"
-                    >
-                      <span className="text-3xl md:text-6xl">🎧</span> PLAY STUDIO MIX (1m)
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowShareModal(true)}
-                      className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
-                    >
-                      <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
-                    </button>
-                 </div>
-               ) : (
-                 <button
-                    onClick={stopStudioMix}
-                    className="w-full py-8 md:py-12 bg-[#FF6B6B] hover:bg-[#D64545] text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#D64545] animate-pulse flex items-center justify-center gap-6"
-                  >
-                    <span>⏹️</span> RECORDING... {Math.round(recordingProgress)}%
-                  </button>
-               )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
-                  <div className="flex flex-col gap-4 md:gap-6">
-                    <button
-                      onClick={handleDownloadOriginal}
-                      disabled={!audioUrl}
-                      className="w-full py-6 md:py-8 bg-white/80 hover:bg-white text-[#1e3a8a] text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-4"
-                    >
-                      <span>💾</span> SAVE RAW
-                    </button>
-                    {audioUrl && (
-                       <div className="flex items-center justify-center bg-white/40 rounded-3xl border-2 border-white p-3">
-                        <audio controls src={audioUrl} className="w-full h-10" />
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="flex flex-col gap-4 md:gap-6">
+          <div className="flex flex-col gap-8 md:gap-12 w-full">
+            {!isComposing ? (
+              <div className="flex flex-col gap-6 w-full">
+                {!studioMixBlob && (
+                  <button
+                    onClick={startAIComposer}
+                    disabled={!isComposerReady}
+                    className={`group relative w-full py-8 md:py-12 text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#020A20] md:shadow-[0_16px_0_#020A20] transition-all duration-150 transform flex items-center justify-center gap-6 ${
+                      isComposerReady
+                        ? 'bg-[#1e3a8a] hover:bg-[#2a4db3] hover:translate-y-[4px] md:hover:translate-y-[8px] active:shadow-none active:translate-y-[10px] md:active:translate-y-[16px] hover:scale-102'
+                        : 'bg-[#1e3a8a]/40 cursor-not-allowed'
+                    }`}
+                  >
+                    <span className="text-3xl md:text-6xl">🎧</span> AI COMPOSER
+                  </button>
+                )}
+
+                {studioMixBlob && (
+                  <button
+                    onClick={startAIComposer}
+                    className="self-center px-6 py-3 bg-white/70 hover:bg-white text-[#1e3a8a] text-xs md:text-sm font-black uppercase tracking-[0.3em] rounded-full border-4 border-white shadow-lg transition-all active:scale-95"
+                  >
+                    Retry Mix
+                  </button>
+                )}
+
+                {!isComposerReady && (
+                  <p className="text-center text-[#1e3a8a]/60 font-black uppercase tracking-[0.2em] text-xs md:text-sm">
+                    AI composer unlocks after studio analysis and recommendations finish.
+                  </p>
+                )}
+
+                {composerError && (
+                  <div className="w-full text-center bg-white/40 rounded-[2rem] border-4 border-red-200 text-red-600 font-black uppercase tracking-widest py-4">
+                    {composerError}
+                  </div>
+                )}
+
+                {studioMixBlob && (
+                  <button
+                    onClick={handleShare}
+                    className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
+                  >
+                    <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={stopAIComposer}
+                className="w-full py-8 md:py-12 bg-[#FF6B6B] hover:bg-[#D64545] text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#D64545] animate-pulse flex items-center justify-center gap-6"
+              >
+                <span>⏹️</span> COMPOSING... {Math.round(composerProgress)}%
+              </button>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+              <div className="flex flex-col gap-4 md:gap-6">
+                <button
+                  onClick={handleDownloadOriginal}
+                  disabled={!audioUrl}
+                  className="w-full py-6 md:py-8 bg-white/80 hover:bg-white text-[#1e3a8a] text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-4"
+                >
+                  <span>💾</span> SAVE RAW
+                </button>
+                {audioUrl && (
+                  <div className="flex items-center justify-center bg-white/40 rounded-3xl border-2 border-white p-3">
+                    <audio controls src={audioUrl} className="w-full h-10" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-4 md:gap-6">
                     <button
                       onClick={handleDownloadStudio}
                       disabled={!studioMixBlob}
                       className={`w-full py-6 md:py-8 text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all flex items-center justify-center gap-4 ${
-                        studioMixBlob 
-                          ? 'bg-[#FF6B6B] text-white hover:bg-[#D64545] animate-bounce shadow-[0_8px_0_#D64545]' 
+                        studioMixBlob
+                          ? 'bg-[#FF6B6B] text-white hover:bg-[#D64545] animate-bounce shadow-[0_8px_0_#D64545]'
                           : 'bg-white/20 text-[#1e3a8a]/30 cursor-not-allowed grayscale'
                       }`}
                     >
-                      <span>🌟</span> {studioMixBlob ? 'DOWNLOAD STUDIO' : 'MIX NOT READY'}
+                      <span>🌟</span>{' '}
+                      {studioMixBlob ? `DOWNLOAD ${recap?.trackTitle || 'STUDIO MIX'}` : 'MIX NOT READY'}
                     </button>
-                    {studioMixUrl && (
-                       <div className="flex items-center justify-center bg-white/60 rounded-3xl border-2 border-white p-3">
-                        <audio controls src={studioMixUrl} className="w-full h-10" />
-                      </div>
-                    )}
+                {studioMixUrl && (
+                  <div className="flex items-center justify-center bg-white/60 rounded-3xl border-2 border-white p-3">
+                    <audio controls src={studioMixUrl} className="w-full h-10" />
                   </div>
-                </div>
+                )}
+              </div>
             </div>
+          </div>
         </div>
+        )}
       </div>
 
       <button
@@ -338,35 +496,6 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         ↺ New Jam
       </button>
 
-      {/* Share Confirmation Popup */}
-      {showShareModal && (
-        <div className="fixed inset-0 bg-[#1e3a8a]/80 backdrop-blur-xl z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300">
-           <div className="bg-white rounded-[4rem] p-10 md:p-16 max-w-2xl w-full shadow-[0_40px_100px_rgba(0,0,0,0.5)] border-[12px] border-white/60 text-center animate-in zoom-in-95 duration-300">
-              <div className="text-8xl mb-8 animate-bounce">📢</div>
-              <h3 className="text-4xl md:text-6xl font-black text-[#1e3a8a] uppercase tracking-tighter leading-tight mb-6" style={{ fontFamily: 'Fredoka One' }}>
-                Ready to Debut?
-              </h3>
-              <p className="text-xl md:text-3xl text-gray-500 font-bold mb-12 leading-relaxed">
-                Are you ready to show your doodle masterpiece to the world?
-              </p>
-              
-              <div className="flex flex-col md:flex-row gap-6">
-                <button 
-                  onClick={() => setShowShareModal(false)}
-                  className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white font-black py-4 rounded-full uppercase tracking-widest transition-colors"
-                >
-                  Confirm Share
-                </button>
-                <button 
-                  onClick={() => setShowShareModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-black py-4 rounded-full uppercase tracking-widest transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-           </div>
-        </div>
-      )}
     </div>
   );
 };

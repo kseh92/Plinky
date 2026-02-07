@@ -67,6 +67,5 @@ export interface RecapData {
   genre?: string;
   trackTitle?: string;
   extendedEventLog?: PerformanceEvent[];
-  groundingChunks?: any[]; // For Google Search citations
   personalJacketUrl?: string; // AI Generated album cover for the child
 }

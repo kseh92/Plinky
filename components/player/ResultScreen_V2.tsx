@@ -3,6 +3,7 @@ import { SessionStats, RecapData, PerformanceEvent } from '../../services/types'
 import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../../services/geminiService';
 import { toneService } from '../../services/toneService';
 import { base64ToUint8Array, concatUint8Arrays, encodeWavFromPcm16, defaultLyriaWsUrl } from '../../services/lyriaStudio';
+import { filterPlayableTracks } from '../../services/youtubeAvailability';
 import RecapCard from './RecapCard_V2';
 
 interface Props {
@@ -49,6 +50,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [accurateDuration, setAccurateDuration] = useState<number | null>(null);
   const [isMeasuring, setIsMeasuring] = useState(true);
   const [isMixing, setIsMixing] = useState(false);
+  const [recapStage, setRecapStage] = useState<string>('');
   const [recapError, setRecapError] = useState<string | null>(null);
   const [recapErrorDetails, setRecapErrorDetails] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
@@ -102,9 +104,11 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       if (!stats || isMeasuring || accurateDuration === null) return;
       setIsRecapLoading(true);
       setIsMixing(true);
+      setRecapStage('Generating recap...');
       setRecapError(null);
       setRecapErrorDetails(null);
       try {
+        console.info('[Result] Recap generation started');
         const recapData = await generateSessionRecap({
           ...stats,
           durationSeconds: accurateDuration,
@@ -114,6 +118,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         const finalRecap: RecapData = { ...recapData };
 
         try {
+          setRecapStage('Analyzing mix...');
           const mixData = await generateMixSettings(stats.eventLog || [], stats.instrument);
           finalRecap.genre = mixData.genre;
           finalRecap.trackTitle = mixData.trackTitle;
@@ -125,13 +130,22 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         }
 
         try {
+          setRecapStage('Generating album jacket...');
           const jacketUrl = await generateAlbumJacket({ ...stats }, finalRecap);
           finalRecap.personalJacketUrl = jacketUrl;
         } catch (err) {
           console.warn("Album jacket generation failed", err);
         }
 
+        try {
+          setRecapStage('Checking YouTube Music availability...');
+          finalRecap.recommendedSongs = await filterPlayableTracks(finalRecap.recommendedSongs || []);
+        } catch (err) {
+          console.warn('Availability check failed', err);
+        }
+
         setRecap(finalRecap);
+        console.info('[Result] Recap generation finished');
       } catch (err: any) {
         console.error("Studio processing failed", err);
         const details =
@@ -143,6 +157,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       } finally {
         setIsRecapLoading(false); 
         setIsMixing(false); 
+        setRecapStage('');
       }
     };
     fetchAIAssistance();
@@ -363,6 +378,11 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
             <p className="text-[#1e3a8a] font-black animate-pulse uppercase tracking-[0.3em] text-center px-8 text-base md:text-xl">
               {isMeasuring ? 'Syncing Your Vibe...' : 'Magically generating your album jacket...'}
             </p>
+            {recapStage && !isMeasuring && (
+              <p className="mt-4 text-[#1e3a8a]/70 font-black uppercase tracking-[0.2em] text-xs md:text-sm text-center">
+                {recapStage}
+              </p>
+            )}
           </div>
         ) : recap ? (
           <div className="animate-in fade-in duration-1000">

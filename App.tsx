@@ -254,7 +254,7 @@ const App: React.FC = () => {
 
           {step === 'story' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-visible pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <StoryScreen onBack={goHome} />
@@ -263,7 +263,7 @@ const App: React.FC = () => {
 
           {step === 'gallery' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-visible pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <div className="relative z-10 w-full flex justify-center">
@@ -274,7 +274,7 @@ const App: React.FC = () => {
 
           {step === 'yourJam' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-visible pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <div className="relative z-10 w-full flex justify-center">
@@ -285,7 +285,7 @@ const App: React.FC = () => {
 
           {step === 'explore' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-visible pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <ExploreScreen onBack={() => setStep('pick')} onCreateCustom={handleCreateCustom} />
@@ -294,7 +294,7 @@ const App: React.FC = () => {
 
           {step === 'settings' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-visible pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <SettingsPage onBack={() => setStep('landing')} />

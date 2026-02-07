@@ -123,8 +123,5 @@ export const PRESET_ZONES: Record<InstrumentType, HitZone[]> = {
     { sound: 'f5', label: 'F', x: 70, y: 15, width: 2.5, height: 70 },
     { sound: 'g5', label: 'G', x: 75, y: 15, width: 2.5, height: 70 },
   ]
-<<<<<<< Updated upstream
+
 };
-=======
-};
->>>>>>> Stashed changes

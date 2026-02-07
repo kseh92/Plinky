@@ -108,44 +108,57 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
       setRecapError(null);
       setRecapErrorDetails(null);
       try {
+        const start = performance.now();
         console.info('[Result] Recap generation started');
-        const recapData = await generateSessionRecap({
+
+        const recapPromise = generateSessionRecap({
           ...stats,
           durationSeconds: accurateDuration,
           intensity: stats.noteCount / (accurateDuration || 1)
         });
 
+        setRecapStage('Analyzing mix...');
+        const mixPromise = generateMixSettings(stats.eventLog || [], stats.instrument);
+
+        const recapData = await recapPromise;
+        console.info('[Result] Recap data received');
         const finalRecap: RecapData = { ...recapData };
 
         try {
-          setRecapStage('Analyzing mix...');
-          const mixData = await generateMixSettings(stats.eventLog || [], stats.instrument);
+          const mixData = await mixPromise;
+          console.info('[Result] Mix settings received');
           finalRecap.genre = mixData.genre;
           finalRecap.trackTitle = mixData.trackTitle;
           finalRecap.mixingSuggestion = mixData.mix;
           finalRecap.extendedEventLog = mixData.extendedEventLog;
           toneService.applyMixingPreset(mixData.mix);
         } catch (err) {
-          console.warn('Mix settings generation failed', err);
-        }
-
-        try {
-          setRecapStage('Generating album jacket...');
-          const jacketUrl = await generateAlbumJacket({ ...stats }, finalRecap);
-          finalRecap.personalJacketUrl = jacketUrl;
-        } catch (err) {
-          console.warn("Album jacket generation failed", err);
+          console.warn('[Result] Mix settings generation failed', err);
         }
 
         try {
           setRecapStage('Checking YouTube Music availability...');
           finalRecap.recommendedSongs = await filterPlayableTracks(finalRecap.recommendedSongs || []);
+          console.info('[Result] Availability check complete');
         } catch (err) {
-          console.warn('Availability check failed', err);
+          console.warn('[Result] Availability check failed', err);
         }
 
+        // Show recap ASAP; jacket loads lazily after recap is visible.
         setRecap(finalRecap);
-        console.info('[Result] Recap generation finished');
+        console.info('[Result] Recap rendered');
+
+        try {
+          setRecapStage('Generating album jacket...');
+          const jacketUrl = await generateAlbumJacket({ ...stats }, finalRecap);
+          finalRecap.personalJacketUrl = jacketUrl;
+          setRecap({ ...finalRecap });
+          console.info('[Result] Album jacket received');
+        } catch (err) {
+          console.warn('[Result] Album jacket generation failed', err);
+        }
+
+        console.info(`[Result] Recap flow finished in ${Math.round(performance.now() - start)}ms`);
       } catch (err: any) {
         console.error("Studio processing failed", err);
         const details =
@@ -417,12 +430,14 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
                   </div>
                 )}
 
-                    <button
-                      onClick={handleShare}
-                      className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
-                    >
-                      <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
-                    </button>
+                {studioMixBlob && (
+                  <button
+                    onClick={handleShare}
+                    className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
+                  >
+                    <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
+                  </button>
+                )}
               </div>
             ) : (
               <button

@@ -1,7 +1,8 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
-import { SessionStats, RecapData } from '../../services/types';
+import { SessionStats, RecapData, PerformanceEvent } from '../../services/types';
 import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../../services/geminiService';
 import { toneService } from '../../services/toneService';
+import { base64ToUint8Array, concatUint8Arrays, encodeWavFromPcm16, defaultLyriaWsUrl } from '../../services/lyriaStudio';
 import RecapCard from './RecapCard_V2';
 
 interface Props {
@@ -53,10 +54,13 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [showShareModal, setShowShareModal] = useState(false);
 
   // Studio Mix states
-  const [isPlayingMix, setIsPlayingMix] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
   const [studioMixBlob, setStudioMixBlob] = useState<Blob | null>(null);
-  const [recordingProgress, setRecordingProgress] = useState(0);
-  const progressIntervalRef = useRef<number | null>(null);
+  const [composerProgress, setComposerProgress] = useState(0);
+  const [composerError, setComposerError] = useState<string | null>(null);
+  const composerChunksRef = useRef<Uint8Array[]>([]);
+  const composerWsRef = useRef<WebSocket | null>(null);
+  const composerTimerRef = useRef<number | null>(null);
 
   const audioUrl = useMemo(() => {
     if (!recording) return null;
@@ -156,50 +160,165 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     if (!studioMixUrl) return;
     const a = document.createElement('a');
     a.href = studioMixUrl;
-    a.download = `studio_${recap?.trackTitle || 'mix'}.webm`;
+    a.download = `studio_${recap?.trackTitle || 'mix'}.wav`;
     a.click();
   };
 
-  const handleReplayStudioMix = async () => {
-    if (recap?.extendedEventLog) {
-      setIsPlayingMix(true);
-      setRecordingProgress(0);
-      setStudioMixBlob(null);
+  const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max);
 
-      // Start recording the studio session
-      await toneService.init();
-      await toneService.startRecording();
-      toneService.replayEventLog(recap.extendedEventLog);
+  const estimateBpm = (events: PerformanceEvent[] | undefined) => {
+    if (!events || events.length < 2) return 90;
+    const timestamps = events.map((e) => e.timestamp).sort((a, b) => a - b);
+    const intervals: number[] = [];
+    for (let i = 1; i < timestamps.length; i += 1) {
+      const delta = (timestamps[i] - timestamps[i - 1]) / 1000;
+      if (delta > 0.05 && delta < 2.5) intervals.push(delta);
+    }
+    if (intervals.length === 0) return 90;
+    intervals.sort((a, b) => a - b);
+    const median = intervals[Math.floor(intervals.length / 2)];
+    const bpm = Math.round(60 / median);
+    return clamp(bpm, 60, 160);
+  };
 
-      const startTime = Date.now();
-      const durationMs = 60000;
+  const buildWeightedPrompts = () => {
+    const instrument = stats?.instrument || 'instrument';
+    const genre = recap?.genre ? `${recap.genre}` : 'cinematic pop';
+    return [
+      { text: `Instrumental ${genre} track led by ${instrument} with clear lead and no vocals`, weight: 1.0 },
+      { text: 'Follow the lead rhythm and timing closely; add tasteful bassline and percussion that supports the performance', weight: 0.9 },
+      { text: 'Polished studio mix, warm low end, crisp highs, dynamic but not harsh', weight: 0.7 }
+    ];
+  };
 
-      progressIntervalRef.current = window.setInterval(() => {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(100, (elapsed / durationMs) * 100);
-        setRecordingProgress(progress);
-        
-        if (elapsed >= durationMs) {
-          stopStudioMix();
+  const finalizeComposer = () => {
+    const pcm = concatUint8Arrays(composerChunksRef.current);
+    if (!pcm.length) {
+      setComposerError('No audio was generated. Please try again.');
+      return;
+    }
+    const sampleRate = 48000;
+    const wavBuffer = encodeWavFromPcm16(pcm, sampleRate, 2);
+    const blob = new Blob([wavBuffer], { type: 'audio/wav' });
+    setStudioMixBlob(blob);
+  };
+
+  const stopAIComposer = () => {
+    if (composerTimerRef.current) {
+      clearInterval(composerTimerRef.current);
+      composerTimerRef.current = null;
+    }
+
+    const ws = composerWsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ playback_control: 'STOP' }));
+      ws.close();
+    }
+
+    setIsComposing(false);
+    setComposerProgress(0);
+    composerWsRef.current = null;
+
+    window.setTimeout(finalizeComposer, 150);
+  };
+
+  const startAIComposer = () => {
+    if (!stats || !recap || isComposing) return;
+
+    setComposerError(null);
+    setStudioMixBlob(null);
+    setIsComposing(true);
+    setComposerProgress(0);
+    composerChunksRef.current = [];
+
+    const durationSec = clamp(Math.round(accurateDuration || stats.durationSeconds || 30), 20, 60);
+    const bpm = estimateBpm(stats.eventLog || []);
+    const notesPerSecond = stats.noteCount / Math.max(1, stats.durationSeconds || 1);
+    const density = clamp(notesPerSecond / 6, 0.2, 0.9);
+    const brightness = stats.instrument === 'Harp' ? 0.65 : 0.55;
+
+    const wsUrl = defaultLyriaWsUrl();
+    if (!wsUrl) {
+      setComposerError('Missing GEMINI_API_KEY. Set it to use the AI composer.');
+      setIsComposing(false);
+      return;
+    }
+
+    const ws = new WebSocket(wsUrl);
+    composerWsRef.current = ws;
+
+    ws.onopen = () => {
+      ws.send(
+        JSON.stringify({
+          setup: {
+            model: 'models/lyria-realtime-exp'
+          }
+        })
+      );
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        if (typeof event.data !== 'string') return;
+        const data = JSON.parse(event.data);
+        if (data.setupComplete) {
+          ws.send(
+            JSON.stringify({
+              client_content: {
+                weighted_prompts: buildWeightedPrompts()
+              }
+            })
+          );
+          ws.send(
+            JSON.stringify({
+              music_generation_config: {
+                bpm,
+                density,
+                brightness,
+                guidance: 4.5,
+                audio_format: 'pcm16',
+                sample_rate_hz: 48000,
+                music_generation_mode: 'QUALITY'
+              }
+            })
+          );
+          ws.send(JSON.stringify({ playback_control: 'PLAY' }));
+        } else if (data.serverContent?.audioChunks?.length) {
+          data.serverContent.audioChunks.forEach((chunk: any) => {
+            const payload = chunk?.data ?? chunk?.bytes;
+            if (typeof payload === 'string') {
+              composerChunksRef.current.push(base64ToUint8Array(payload));
+            }
+          });
+        } else if (data.filteredPrompt) {
+          setComposerError('Prompt was filtered. Try a different description.');
+          stopAIComposer();
+        } else if (data.warning) {
+          console.warn('Composer warning:', data.warning);
         }
-      }, 100);
-    }
+      } catch {
+        setComposerError('Composer message error');
+        stopAIComposer();
+      }
+    };
+
+    ws.onerror = () => {
+      setComposerError('Composer connection failed.');
+      stopAIComposer();
+    };
+
+    const startTime = Date.now();
+    composerTimerRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(100, (elapsed / (durationSec * 1000)) * 100);
+      setComposerProgress(progress);
+      if (elapsed >= durationSec * 1000) {
+        stopAIComposer();
+      }
+    }, 100);
   };
 
-  const stopStudioMix = async () => {
-    if (progressIntervalRef.current) {
-      clearInterval(progressIntervalRef.current);
-      progressIntervalRef.current = null;
-    }
-    
-    toneService.stopAll();
-    const result = await toneService.stopRecording();
-    if (result) {
-      setStudioMixBlob(result.blob);
-    }
-    setIsPlayingMix(false);
-    setRecordingProgress(0);
-  };
+  const isComposerReady = Boolean(recap) && !isRecapLoading && !isMeasuring && !isMixing;
 
   return (
     <div className="flex flex-col items-center w-full max-w-5xl mx-auto p-6 md:p-16 bg-white/40 backdrop-blur-xl rounded-[4rem] md:rounded-[6rem] shadow-2xl border-[8px] md:border-[16px] border-white/60 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -260,75 +379,96 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
           </div>
         ) : null}
 
+        {recap && !recapError && !isRecapLoading && !isMeasuring && (
         <div className="w-full bg-[#1e3a8a]/5 p-8 md:p-14 rounded-[4rem] md:rounded-[5rem] flex flex-col items-center border-[6px] md:border-[8px] border-white shadow-inner relative overflow-hidden">
-          {isPlayingMix && (
-            <div className="absolute top-0 left-0 h-3 bg-[#FF6B6B] transition-all duration-100 shadow-[0_0_20px_#FF6B6B]" style={{ width: `${recordingProgress}%` }} />
+          {isComposing && (
+            <div
+              className="absolute top-0 left-0 h-3 bg-[#FF6B6B] transition-all duration-100 shadow-[0_0_20px_#FF6B6B]"
+              style={{ width: `${composerProgress}%` }}
+            />
           )}
-          
-          <div className="flex flex-col gap-8 md:gap-12 w-full">
-               {!isPlayingMix ? (
-                 <div className="flex flex-col gap-6 w-full">
-                   <button
-                      onClick={handleReplayStudioMix}
-                      disabled={!recap?.extendedEventLog}
-                      className="group relative w-full py-8 md:py-12 bg-[#1e3a8a] hover:bg-[#2a4db3] text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#020A20] md:shadow-[0_16px_0_#020A20] hover:translate-y-[4px] md:hover:translate-y-[8px] active:shadow-none active:translate-y-[10px] md:active:translate-y-[16px] transition-all duration-150 transform hover:scale-102 flex items-center justify-center gap-6"
-                    >
-                      <span className="text-3xl md:text-6xl">🎧</span> PLAY STUDIO MIX (1m)
-                    </button>
-                    
-                    <button
-                      onClick={() => setShowShareModal(true)}
-                      className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
-                    >
-                      <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
-                    </button>
-                 </div>
-               ) : (
-                 <button
-                    onClick={stopStudioMix}
-                    className="w-full py-8 md:py-12 bg-[#FF6B6B] hover:bg-[#D64545] text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#D64545] animate-pulse flex items-center justify-center gap-6"
-                  >
-                    <span>⏹️</span> RECORDING... {Math.round(recordingProgress)}%
-                  </button>
-               )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
-                  <div className="flex flex-col gap-4 md:gap-6">
-                    <button
-                      onClick={handleDownloadOriginal}
-                      disabled={!audioUrl}
-                      className="w-full py-6 md:py-8 bg-white/80 hover:bg-white text-[#1e3a8a] text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-4"
-                    >
-                      <span>💾</span> SAVE RAW
-                    </button>
-                    {audioUrl && (
-                       <div className="flex items-center justify-center bg-white/40 rounded-3xl border-2 border-white p-3">
-                        <audio controls src={audioUrl} className="w-full h-10" />
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="flex flex-col gap-4 md:gap-6">
-                    <button
-                      onClick={handleDownloadStudio}
-                      disabled={!studioMixBlob}
-                      className={`w-full py-6 md:py-8 text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all flex items-center justify-center gap-4 ${
-                        studioMixBlob 
-                          ? 'bg-[#FF6B6B] text-white hover:bg-[#D64545] animate-bounce shadow-[0_8px_0_#D64545]' 
-                          : 'bg-white/20 text-[#1e3a8a]/30 cursor-not-allowed grayscale'
-                      }`}
-                    >
-                      <span>🌟</span> {studioMixBlob ? 'DOWNLOAD STUDIO' : 'MIX NOT READY'}
-                    </button>
-                    {studioMixUrl && (
-                       <div className="flex items-center justify-center bg-white/60 rounded-3xl border-2 border-white p-3">
-                        <audio controls src={studioMixUrl} className="w-full h-10" />
-                      </div>
-                    )}
+          <div className="flex flex-col gap-8 md:gap-12 w-full">
+            {!isComposing ? (
+              <div className="flex flex-col gap-6 w-full">
+                <button
+                  onClick={startAIComposer}
+                  disabled={!isComposerReady}
+                  className={`group relative w-full py-8 md:py-12 text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#020A20] md:shadow-[0_16px_0_#020A20] transition-all duration-150 transform flex items-center justify-center gap-6 ${
+                    isComposerReady
+                      ? 'bg-[#1e3a8a] hover:bg-[#2a4db3] hover:translate-y-[4px] md:hover:translate-y-[8px] active:shadow-none active:translate-y-[10px] md:active:translate-y-[16px] hover:scale-102'
+                      : 'bg-[#1e3a8a]/40 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="text-3xl md:text-6xl">🎧</span> AI COMPOSER
+                </button>
+
+                {!isComposerReady && (
+                  <p className="text-center text-[#1e3a8a]/60 font-black uppercase tracking-[0.2em] text-xs md:text-sm">
+                    AI composer unlocks after studio analysis and recommendations finish.
+                  </p>
+                )}
+
+                {composerError && (
+                  <div className="w-full text-center bg-white/40 rounded-[2rem] border-4 border-red-200 text-red-600 font-black uppercase tracking-widest py-4">
+                    {composerError}
                   </div>
-                </div>
+                )}
+
+                <button
+                  onClick={() => setShowShareModal(true)}
+                  className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
+                >
+                  <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={stopAIComposer}
+                className="w-full py-8 md:py-12 bg-[#FF6B6B] hover:bg-[#D64545] text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#D64545] animate-pulse flex items-center justify-center gap-6"
+              >
+                <span>⏹️</span> COMPOSING... {Math.round(composerProgress)}%
+              </button>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10">
+              <div className="flex flex-col gap-4 md:gap-6">
+                <button
+                  onClick={handleDownloadOriginal}
+                  disabled={!audioUrl}
+                  className="w-full py-6 md:py-8 bg-white/80 hover:bg-white text-[#1e3a8a] text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-4"
+                >
+                  <span>💾</span> SAVE RAW
+                </button>
+                {audioUrl && (
+                  <div className="flex items-center justify-center bg-white/40 rounded-3xl border-2 border-white p-3">
+                    <audio controls src={audioUrl} className="w-full h-10" />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-4 md:gap-6">
+                <button
+                  onClick={handleDownloadStudio}
+                  disabled={!studioMixBlob}
+                  className={`w-full py-6 md:py-8 text-base md:text-2xl font-black rounded-[2rem] md:rounded-[3rem] border-4 border-white shadow-lg transition-all flex items-center justify-center gap-4 ${
+                    studioMixBlob
+                      ? 'bg-[#FF6B6B] text-white hover:bg-[#D64545] animate-bounce shadow-[0_8px_0_#D64545]'
+                      : 'bg-white/20 text-[#1e3a8a]/30 cursor-not-allowed grayscale'
+                  }`}
+                >
+                  <span>🌟</span> {studioMixBlob ? 'DOWNLOAD STUDIO' : 'MIX NOT READY'}
+                </button>
+                {studioMixUrl && (
+                  <div className="flex items-center justify-center bg-white/60 rounded-3xl border-2 border-white p-3">
+                    <audio controls src={studioMixUrl} className="w-full h-10" />
+                  </div>
+                )}
+              </div>
             </div>
+          </div>
         </div>
+        )}
       </div>
 
       <button

@@ -1,218 +1,331 @@
+import React from 'react';
+import { useAppFlow } from './components/app/useAppFlow';
 
-import React, { useState, useRef } from 'react';
-import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent } from './types';
-import { INSTRUMENTS, PRESET_ZONES } from './constants';
-import { generateBlueprint, scanDrawing } from './geminiService';
-import BlueprintDisplay from './components/BlueprintDisplay';
-import CameraScanner from './components/CameraScanner';
-import InstrumentPlayer from './components/InstrumentPlayer';
-import ResultScreen from './components/ResultScreen';
+import { BackgroundElements } from './components/layout/BackgroundElements';
+import { GlobalHeader } from './components/layout/GlobalHeader';
+import { RedMonster } from './components/layout/RedMonster';
+
+// --- Doodles ---
+import {
+  ScribbleDoodle,
+  WaveDoodle,
+  GreenPlantDoodle,
+  BrownPianoDoodle,
+  PurpleClusterDoodle
+} from './components/decor/doodles';
+import {
+  MessySun,
+  ShakyStar,
+  CrayonSpiral,
+  ShakyHeart
+} from './components/decor/crayonDoodles';
+
+// --- Screens ---
+import { LandingScreen } from './components/screens/LandingScreen';
+import { StoryScreen } from './components/header/StoryScreen';
+import SettingsPage from './components/header/SettingsPage';
+import GalleryPage from './components/header/GalleryPage';
+import { YourJamScreen } from './components/header/YourJamPage';
+import { ExploreScreen } from './components/screens/ExplorePage';
+
+// --- Player Components ---
+import BlueprintDisplay from './components/player/BlueprintDisplay';
+import CameraScanner from './components/player/CameraScanner';
+import InstrumentPlayer from './components/player/InstrumentPlayer_V2';
+import ResultScreen from './components/player/ResultScreen_V2';
+
+import { INSTRUMENTS, getInstrumentIcon } from './services/constants';
 
 const App: React.FC = () => {
-  const [step, setStep] = useState<'pick' | 'blueprint' | 'provide' | 'scan' | 'play' | 'result'>('pick');
-  const [selectedType, setSelectedType] = useState<InstrumentType | null>(null);
-  const [blueprint, setBlueprint] = useState<InstrumentBlueprint | null>(null);
-  const [hitZones, setHitZones] = useState<HitZone[]>([]);
-  const [recording, setRecording] = useState<Blob | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [sessionStats, setSessionStats] = useState<SessionStats | null>(null);
+  const flow = useAppFlow();
+  const {
+    step,
+    setStep,
+    goHome,
+    selectedType,
+    isLoading,
+    error,
+    blueprint,
+    hitZones,
+    recording,
+    sessionStats,
+    handlePick,
+    handleCreateCustom,
+    handleShowBlueprint,
+    handleQuickStart,
+    handleCapture,
+    handleFinishedPlaying
+  } = flow;
 
-  const handlePick = (type: InstrumentType) => {
-    setSelectedType(type);
-    setStep('provide');
-  };
+  const isSubPage = [
+    'story',
+    'gallery',
+    'settings',
+    'yourJam',
+    'explore',
+    'pick',
+    'provide',
+    'result',
+    'blueprint',
+    'scan'
+  ].includes(step);
 
-  const handleShowBlueprint = async () => {
-    if (!selectedType) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const bp = await generateBlueprint(selectedType);
-      setBlueprint(bp);
-      setStep('blueprint');
-    } catch (err) {
-      setError("Oops! Gemini is busy. Try again?");
-    } finally {
-      setIsLoading(false);
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        handleCapture(base64);
+      };
+      reader.readAsDataURL(file);
     }
-  };
-
-  const handleQuickStart = () => {
-    if (!selectedType) return;
-    setHitZones(PRESET_ZONES[selectedType]);
-    setStep('play');
-  };
-
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64 = e.target?.result as string;
-      handleCapture(base64);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleCapture = async (base64: string) => {
-    if (!selectedType) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-      const zones = await scanDrawing(selectedType, base64);
-      setHitZones(zones);
-      setStep('play');
-    } catch (err) {
-      setError("We couldn't read your drawing. Make sure it's bright and clear!");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleFinishedPlaying = (blob: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number; eventLog: PerformanceEvent[] }) => {
-    const roundedDuration = Math.max(1, Math.round(stats.duration));
-    if (selectedType) {
-      setSessionStats({
-        instrument: selectedType,
-        durationSeconds: roundedDuration,
-        noteCount: stats.noteCount,
-        uniqueNotesCount: stats.uniqueNotes.size,
-        intensity: stats.noteCount / stats.duration,
-        eventLog: stats.eventLog
-      });
-    }
-    setRecording(blob);
-    setStep('result');
-  };
-
-  const reset = () => {
-    setStep('pick');
-    setBlueprint(null);
-    setSelectedType(null);
-    setHitZones([]);
-    setRecording(null);
-    setSessionStats(null);
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-12 flex flex-col items-center">
-      <header className="mb-12 text-center">
-        <h1 className="text-5xl md:text-7xl text-blue-600 mb-2">Paper Instruments</h1>
-        <p className="text-xl text-blue-400 font-semibold tracking-wide uppercase">Draw • Upload • Play</p>
-      </header>
+    <div className="min-h-screen flex flex-col items-center overflow-x-hidden relative text-center">
+      <BackgroundElements />
 
-      {error && (
-        <div className="bg-red-100 border-2 border-red-200 text-red-600 p-4 rounded-2xl mb-8 flex items-center gap-3 animate-bounce">
-          <span>⚠️ {error}</span>
+      <GlobalHeader
+        onHome={goHome}
+        onStory={() => setStep('story')}
+        onGallery={() => setStep('gallery')}
+        onYourJam={() => setStep('yourJam')}
+        onSettings={() => setStep('settings')}
+        onExplore={() => setStep('explore')}
+        currentStep={step}
+      />
+
+      {/* Persistent Decorative Elements */}
+      {(step === 'landing' ||
+        step === 'pick' ||
+        step === 'result' ||
+        step === 'story' ||
+        step === 'gallery' ||
+        step === 'settings' ||
+        step === 'yourJam' ||
+        step === 'explore') && (
+        <div className="absolute inset-0 pointer-events-none z-0">
+          <ScribbleDoodle className="absolute left-[5%] top-[12%] w-[180px] opacity-60 animate-float" style={{ animationDuration: '12s' }} />
+          <WaveDoodle className="absolute right-[-10%] top-[10%] w-[600px] opacity-40 animate-drift" />
+          <GreenPlantDoodle className="absolute left-[10%] bottom-[45%] w-[150px] opacity-80 animate-wobble" />
+          <BrownPianoDoodle className="absolute right-[12%] bottom-[50%] w-[220px] opacity-70 rotate-[15deg] animate-float" />
+          <PurpleClusterDoodle className="absolute left-[20%] top-[35%] w-[110px] opacity-70 animate-pulse" style={{ animationDuration: '4s' }} />
+          <GreenPlantDoodle className="absolute right-[25%] top-[35%] w-[90px] opacity-40 -rotate-12 animate-float" />
+          <MessySun className="absolute right-[5%] top-[5%] opacity-60 animate-pulse" />
+          <ShakyStar className="absolute left-[15%] top-[45%] opacity-50 animate-orbit" style={{ animationDuration: '15s' }} />
+          <CrayonSpiral className="absolute right-[10%] bottom-[15%] opacity-40 animate-float" style={{ animationDuration: '20s' }} />
+          <ShakyHeart className="absolute left-[8%] top-[25%] opacity-60 animate-wobble" />
         </div>
       )}
 
-      {step === 'pick' && (
-        <div className="flex flex-wrap justify-center gap-8 w-full max-w-4xl">
-          {INSTRUMENTS.map((inst) => (
-            <button
-              key={inst.type}
-              onClick={() => handlePick(inst.type)}
-              className={`${inst.color} p-10 rounded-[3rem] shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-2 flex flex-col items-center min-w-[280px] flex-1 md:flex-initial`}
-            >
-              <span className="text-7xl mb-4" role="img" aria-label={inst.type}>{inst.icon}</span>
-              <span className="text-2xl font-bold text-white uppercase tracking-wider">{inst.type}</span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {step === 'provide' && selectedType && (
-        <div className="flex flex-col items-center gap-8 w-full max-w-2xl">
-          <h2 className="text-3xl font-bold text-blue-800 text-center">Ready to play your {selectedType}?</h2>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
-            <button
-              onClick={() => setStep('scan')}
-              className="bg-white border-4 border-blue-400 p-8 rounded-3xl shadow-lg hover:bg-blue-50 transition-colors flex flex-col items-center gap-4"
-            >
-              <span className="text-5xl">📷</span>
-              <span className="font-bold text-blue-600">Scan Paper Drawing</span>
-            </button>
-            
-            <button
-              onClick={handleQuickStart}
-              className="bg-yellow-400 border-4 border-yellow-600 p-8 rounded-3xl shadow-lg hover:bg-yellow-300 transition-colors flex flex-col items-center gap-4 group"
-            >
-              <span className="text-5xl group-hover:scale-110 transition-transform">⚡</span>
-              <span className="font-bold text-yellow-900">Instant Demo Mode</span>
-              <span className="text-xs text-yellow-800 opacity-60">Use pre-baked hit zones</span>
-            </button>
+      <main className={`flex-1 w-full flex flex-col items-center ${isSubPage ? 'pt-40 pb-32' : ''}`}>
+        {/* Red Monster Positioning: Default peeking behavior for generic scan/play/result sub-pages */}
+        {isSubPage && !['story', 'gallery', 'yourJam', 'settings', 'pick', 'provide', 'explore', 'landing', 'result'].includes(step) && (
+          <div className="w-full flex justify-center mb-0 mt-4 animate-in fade-in slide-in-from-top-4 duration-700 relative z-0">
+            <div className="w-24 md:w-40 h-16 md:h-28 overflow-hidden flex items-start justify-center">
+              <div className="w-32 md:w-56 aspect-[1514/770] drop-shadow-xl transform -translate-y-2">
+                <RedMonster className="w-full h-full" />
+              </div>
+            </div>
           </div>
+        )}
 
-          <div className="w-full h-px bg-gray-200 my-4" />
+        <div className="relative z-10 w-full flex flex-col items-center px-4">
+          {error && (
+            <div className="bg-red-100 border-4 border-red-200 text-red-600 p-6 rounded-[2rem] mb-12 flex items-center gap-3 animate-bounce shadow-xl font-black uppercase tracking-widest max-w-2xl">
+              <span>⚠️ {error}</span>
+            </div>
+          )}
 
-          <div className="flex flex-col items-center gap-4">
-            <label className="cursor-pointer text-green-600 font-bold hover:underline">
-              <input 
-                type="file" 
-                className="hidden" 
-                accept="image/*" 
-                onChange={handleFileUpload}
-              />
-              📁 Upload an image instead
-            </label>
+          {step === 'landing' && <LandingScreen onStart={() => setStep('pick')} />}
 
-            <button
-              onClick={handleShowBlueprint}
-              className="text-blue-500 font-bold hover:underline"
-            >
-              Wait, I need a blueprint guide!
-            </button>
-          </div>
-          
-          <button onClick={reset} className="text-gray-400 font-bold uppercase tracking-widest text-sm">Cancel</button>
+          {step === 'pick' && (
+            <div className="flex flex-col items-center w-full min-h-[calc(100vh-200px)] justify-start pb-48">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 w-full max-w-4xl py-12 animate-in slide-in-from-bottom-10 duration-700 relative z-50 grid-auto-rows-fr">
+                {INSTRUMENTS.map((inst) => (
+                  <button
+                    key={inst.type}
+                    onClick={() => handlePick(inst.type)}
+                    className={`${inst.color} h-full p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center border-[12px] border-white/30 group`}
+                  >
+                    <div className="w-40 h-40 mb-6 drop-shadow-2xl group-hover:animate-wobble flex items-center justify-center">
+                      {inst.icon}
+                    </div>
+                    <span className="text-4xl font-black text-white uppercase tracking-widest mt-auto">{inst.type}</span>
+                  </button>
+                ))}
+
+                <button
+                  onClick={() => {
+                    setStep('explore');
+                  }}
+                  className="bg-orange-400 h-full p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center border-[12px] border-white/30 group"
+                >
+                  <div className="w-40 h-40 mb-6 drop-shadow-2xl group-hover:animate-pulse flex items-center justify-center">
+                    <span className="text-[120px]">🧭</span>
+                  </div>
+                  <span className="text-4xl font-black text-white uppercase tracking-widest mt-auto">Explore</span>
+                </button>
+              </div>
+
+              <div className="fixed bottom-0 left-0 right-0 h-[30vh] overflow-hidden pointer-events-none z-10 opacity-80 translate-y-[15%]">
+                <RedMonster className="w-full h-full" />
+              </div>
+            </div>
+          )}
+
+          {step === 'provide' && selectedType && (
+            <div className="flex flex-col items-center gap-12 py-12 animate-in fade-in duration-500 relative w-full max-w-4xl">
+              <button
+                onClick={() => setStep('pick')}
+                className="bg-white/40 backdrop-blur-md text-[#1e3a8a] px-8 py-3 rounded-full font-black uppercase tracking-widest text-sm flex items-center gap-2 shadow-lg hover:scale-110 transition-transform border-4 border-white mb-2"
+              >
+                <span>←</span> Change Instrument
+              </button>
+
+              <div className="w-32 h-32 md:w-48 md:h-48 drop-shadow-2xl animate-wobble -mb-4">
+                {getInstrumentIcon(selectedType)}
+              </div>
+
+              <h2 className="text-4xl md:text-6xl font-black text-white drop-shadow-xl uppercase tracking-tighter text-center">
+                Choose Your Path: {selectedType}
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10 w-full max-w-2xl">
+                <button
+                  onClick={() => setStep('scan')}
+                  className="bg-white p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 hover:scale-110 transition-transform border-[8px] border-sky-200 group"
+                >
+                  <span className="text-8xl group-hover:scale-125 transition-transform">📷</span>
+                  <span className="text-2xl font-black text-sky-600 uppercase tracking-widest">Scan Drawing</span>
+                </button>
+                <button
+                  onClick={handleQuickStart}
+                  className="bg-yellow-400 p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 hover:scale-110 transition-transform border-[8px] border-yellow-200 group"
+                >
+                  <span className="text-8xl group-hover:animate-bounce">⚡</span>
+                  <span className="text-2xl font-black text-yellow-900 uppercase tracking-widest">Instant Magic</span>
+                </button>
+              </div>
+
+              <div className="w-full h-1 bg-white/20 my-4 rounded-full max-w-xl" />
+
+              <div className="flex flex-col items-center gap-6 mb-12">
+                <label className="cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-white px-10 py-4 rounded-full font-black uppercase tracking-widest shadow-[0_6px_0_#065f46] transition-all hover:translate-y-1 active:shadow-none flex items-center gap-3">
+                  <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                  <span>📁</span> Upload Drawing Instead
+                </label>
+
+                <button
+                  onClick={handleShowBlueprint}
+                  className="text-white text-xl underline font-black uppercase tracking-[0.2em] hover:text-[#1e3a8a] transition-colors py-4"
+                >
+                  Wait, I need a blueprint guide!
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'blueprint' && blueprint && (
+            <div className="flex flex-col items-center gap-12 w-full max-w-4xl py-12 animate-in zoom-in-95 duration-500">
+              <BlueprintDisplay blueprint={blueprint} />
+
+              <div className="flex flex-wrap justify-center gap-8">
+                <button
+                  onClick={() => setStep('scan')}
+                  className="px-12 py-7 bg-blue-500 text-white rounded-full text-2xl font-black shadow-[0_10px_0_#1e3a8a] hover:bg-blue-600 transition-all hover:translate-y-1 active:shadow-none uppercase tracking-widest flex items-center gap-4"
+                >
+                  <span>📸</span> OPEN CAMERA
+                </button>
+                <button
+                  onClick={handleQuickStart}
+                  className="px-12 py-7 bg-yellow-500 text-white rounded-full text-2xl font-black shadow-[0_10px_0_#ca8a04] hover:bg-yellow-600 transition-all hover:translate-y-1 active:shadow-none uppercase tracking-widest flex items-center gap-4"
+                >
+                  <span>⚡</span> TRY DEMO
+                </button>
+              </div>
+
+              <button onClick={goHome} className="text-[#1e3a8a] font-black uppercase tracking-[0.3em] text-sm hover:underline">
+                Back to Start
+              </button>
+            </div>
+          )}
+
+          {step === 'story' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                <RedMonster className="w-full h-full" />
+              </div>
+              <StoryScreen onBack={goHome} />
+            </div>
+          )}
+
+          {step === 'gallery' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                <RedMonster className="w-full h-full" />
+              </div>
+              <div className="relative z-10 w-full flex justify-center">
+                <GalleryPage onBack={goHome} />
+              </div>
+            </div>
+          )}
+
+          {step === 'yourJam' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                <RedMonster className="w-full h-full" />
+              </div>
+              <div className="relative z-10 w-full flex justify-center">
+                <YourJamScreen onBack={goHome} />
+              </div>
+            </div>
+          )}
+
+          {step === 'explore' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                <RedMonster className="w-full h-full" />
+              </div>
+              <ExploreScreen onBack={() => setStep('pick')} onCreateCustom={handleCreateCustom} />
+            </div>
+          )}
+
+          {step === 'settings' && (
+            <div className="w-full flex flex-col items-center pb-24 relative">
+              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+                <RedMonster className="w-full h-full" />
+              </div>
+              <SettingsPage onBack={() => setStep('landing')} />
+            </div>
+          )}
+
+          {step === 'scan' && (
+            <div className="w-full flex flex-col items-center gap-10 py-12">
+              <h2 className="text-4xl md:text-6xl font-black text-white drop-shadow-xl uppercase tracking-tighter">Scan Your Paper</h2>
+              <CameraScanner onCapture={handleCapture} isScanning={isLoading} />
+              <button
+                onClick={() => setStep('provide')}
+                className="text-white/60 font-black uppercase tracking-widest text-lg hover:text-white transition-colors"
+              >
+                Go Back
+              </button>
+            </div>
+          )}
+
+          {step === 'play' && hitZones.length > 0 && selectedType && (
+            <InstrumentPlayer instrumentType={selectedType} hitZones={hitZones} onExit={handleFinishedPlaying} />
+          )}
+
+          {step === 'result' && <ResultScreen recording={recording} onRestart={goHome} stats={sessionStats} />}
         </div>
-      )}
-
-      {step === 'blueprint' && blueprint && (
-        <div className="flex flex-col items-center gap-8 w-full">
-          <BlueprintDisplay blueprint={blueprint} />
-          <div className="flex flex-wrap justify-center gap-4">
-            <button
-              onClick={() => setStep('scan')}
-              className="px-12 py-5 bg-blue-500 text-white rounded-full text-xl font-black shadow-xl hover:bg-blue-600 transition-all"
-            >
-              OPEN CAMERA 📸
-            </button>
-            <button
-              onClick={handleQuickStart}
-              className="px-12 py-5 bg-yellow-500 text-white rounded-full text-xl font-black shadow-xl hover:bg-yellow-600 transition-all"
-            >
-              TRY DEMO ⚡
-            </button>
-          </div>
-          <button onClick={reset} className="text-gray-400 font-bold uppercase tracking-widest text-sm">Back to Start</button>
-        </div>
-      )}
-
-      {step === 'scan' && (
-        <div className="w-full flex flex-col items-center gap-6">
-          <h2 className="text-2xl font-bold text-blue-800">Scan Your Paper</h2>
-          <CameraScanner onCapture={handleCapture} isScanning={isLoading} />
-          <button onClick={() => setStep('provide')} className="text-gray-400 font-bold uppercase tracking-widest text-sm">Go Back</button>
-        </div>
-      )}
-
-      {step === 'play' && hitZones.length > 0 && (
-        <InstrumentPlayer hitZones={hitZones} onExit={handleFinishedPlaying} />
-      )}
-
-      {step === 'result' && (
-        <ResultScreen recording={recording} onRestart={reset} stats={sessionStats} />
-      )}
+      </main>
 
       {isLoading && (
-        <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center">
-          <div className="w-20 h-20 border-8 border-blue-500 border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-2xl font-bold text-blue-600 animate-pulse text-center px-4">
+        <div className="fixed inset-0 bg-[#1e3a8a]/70 backdrop-blur-2xl z-[200] flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-32 h-32 border-[12px] border-white border-t-transparent rounded-full animate-spin mb-8" />
+          <p className="text-white font-black animate-pulse text-4xl uppercase tracking-[0.3em] max-w-3xl">
             {step === 'pick' || step === 'provide' ? 'Preparing the blueprint...' : 'Gemini is reading your drawing...'}
           </p>
         </div>

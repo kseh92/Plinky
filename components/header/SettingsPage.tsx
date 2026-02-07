@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { InstrumentType } from '../services/types';
-import { INSTRUMENTS } from '../services/constants';
+import { InstrumentType } from '../../services/types';
+import { INSTRUMENTS } from '../../services/constants';
 
 const SettingsPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [defaultInstrument, setDefaultInstrument] = useState<InstrumentType>('Piano');

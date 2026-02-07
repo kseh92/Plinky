@@ -105,10 +105,7 @@ export const PRESET_ZONES: Record<InstrumentType, HitZone[]> = {
     { sound: 'crash_l', label: 'CRASH L', x: 22, y: 11, width: 16, height: 20 },
     { sound: 'crash_r', label: 'CRASH R', x: 62, y: 11, width: 16, height: 20 },
   ],
-<<<<<<< Updated upstream
   'Guitar': [],
-=======
->>>>>>> Stashed changes
   'Harp': [
     { sound: 'c4', label: 'C', x: 20, y: 15, width: 2.5, height: 70 },
     { sound: 'd4', label: 'D', x: 25, y: 15, width: 2.5, height: 70 },

@@ -1,7 +1,7 @@
 // src/screens/LandingScreen.tsx
 import React from 'react';
-import { CurvedLineDoodle, SmallCurvedDoodle } from '../decor/doodles.tsx';
-import { RedMonster } from '../layout/RedMonster.tsx';
+import { CurvedLineDoodle, SmallCurvedDoodle } from '../decor/doodles';
+import { RedMonster } from '../layout/RedMonster';
 
 // --- LandingScreen: Entry point for the app ---
 export const LandingScreen: React.FC<{ onStart: () => void }> = ({ onStart }) => (

@@ -193,7 +193,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
           frameHits.forEach(sound => {
             if (!activeHitsRef.current.has(sound)) {
               const taggedSound = instrumentType === 'Harp' ? `harp:${sound}` : sound;
-              toneService.play(taggedSound, undefined, instrumentType);
+              toneService.startNote(taggedSound, instrumentType);
               noteCountRef.current += 1;
               uniqueNotesRef.current.add(sound);
               const zone = hitZones.find(z => z.sound === sound);
@@ -202,6 +202,13 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
                 const py = (zone.y + zone.height / 2) / 100 * canvasRef.current.height;
                 spawnParticles(px, py, '#2563eb');
               }
+            }
+          });
+
+          activeHitsRef.current.forEach(sound => {
+            if (!frameHits.has(sound)) {
+              const taggedSound = instrumentType === 'Harp' ? `harp:${sound}` : sound;
+              toneService.stopNote(taggedSound, instrumentType);
             }
           });
 

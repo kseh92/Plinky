@@ -54,6 +54,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [recapStage, setRecapStage] = useState<string>('');
   const [recapError, setRecapError] = useState<string | null>(null);
   const [recapErrorDetails, setRecapErrorDetails] = useState<string | null>(null);
+  const hasRecapRef = useRef(false);
 
   // Studio Mix states
   const [isComposing, setIsComposing] = useState(false);
@@ -101,8 +102,10 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   }, [audioUrl, stats]);
 
   useEffect(() => {
+    if (hasRecapRef.current) return;
     const fetchAIAssistance = async () => {
       if (!stats || isMeasuring || accurateDuration === null) return;
+      hasRecapRef.current = true;
       setIsRecapLoading(true);
       setIsMixing(true);
       setRecapStage('Generating recap...');

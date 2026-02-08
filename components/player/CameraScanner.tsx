@@ -65,83 +65,85 @@ const CameraScanner: React.FC<Props> = ({ onCapture, isScanning, blueprint }) =>
   };
 
   return (
-    <div className="relative w-full max-w-2xl mx-auto rounded-[3rem] overflow-hidden shadow-2xl bg-black border-[12px] border-white">
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        className="w-full h-auto"
-      />
-      <canvas ref={canvasRef} className="hidden" />
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        className="hidden" 
-        accept="image/*" 
-        onChange={handleFileUpload} 
-      />
-      
-      {/* Visual Guide Overlay */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-         <div className="w-[85%] h-[80%] border-4 border-dashed border-white/60 rounded-[2rem] relative">
-            <div className="absolute top-0 left-0 right-0 p-4 bg-black/40 text-white font-black text-xs uppercase tracking-widest text-center rounded-t-[1.7rem]">
-              Fill this area with your drawing
-            </div>
-         </div>
+    <div className="w-full max-w-2xl mx-auto">
+      <div className="relative w-full rounded-[3rem] overflow-hidden shadow-2xl bg-black border-[12px] border-white">
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          className="w-full h-auto -scale-x-100"
+        />
+        <canvas ref={canvasRef} className="hidden" />
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept="image/*" 
+          onChange={handleFileUpload} 
+        />
+        
+        {/* Visual Guide Overlay */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+           <div className="w-[85%] h-[80%] border-4 border-dashed border-white/60 rounded-[2rem] relative">
+              <div className="absolute top-0 left-0 right-0 p-4 bg-black/40 text-white font-black text-xs uppercase tracking-widest text-center rounded-t-[1.7rem]">
+                Fill this area with your drawing
+              </div>
+           </div>
+        </div>
+
+        {blueprint?.shapes && (
+          <div className="absolute inset-0 pointer-events-none">
+            <svg viewBox="0 0 100 100" className="w-full h-full">
+              {blueprint.shapes.map((shape) => {
+                const interactive = shape.isInteractive !== false;
+                const stroke = interactive ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.45)';
+                const dash = interactive ? '3,3' : '6,6';
+                return (
+                  <g key={shape.id}>
+                    {shape.type === 'circle' ? (
+                      <circle
+                        cx={shape.x}
+                        cy={shape.y}
+                        r={shape.radius || 10}
+                        fill="none"
+                        stroke={stroke}
+                        strokeWidth="0.6"
+                        strokeDasharray={dash}
+                      />
+                    ) : (
+                      <rect
+                        x={shape.x - (shape.width || 10) / 2}
+                        y={shape.y - (shape.height || 10) / 2}
+                        width={shape.width || 10}
+                        height={shape.height || 10}
+                        fill="none"
+                        stroke={stroke}
+                        strokeWidth="0.6"
+                        strokeDasharray={dash}
+                      />
+                    )}
+                    {interactive && (
+                      <text
+                        x={shape.x}
+                        y={shape.y}
+                        fontSize="4"
+                        textAnchor="middle"
+                        alignmentBaseline="middle"
+                        fill="rgba(34,197,94,0.9)"
+                        className="font-bold"
+                      >
+                        {shape.label}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
+        )}
       </div>
 
-      {blueprint?.shapes && (
-        <div className="absolute inset-0 pointer-events-none">
-          <svg viewBox="0 0 100 100" className="w-full h-full">
-            {blueprint.shapes.map((shape) => {
-              const interactive = shape.isInteractive !== false;
-              const stroke = interactive ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.45)';
-              const dash = interactive ? '3,3' : '6,6';
-              return (
-                <g key={shape.id}>
-                  {shape.type === 'circle' ? (
-                    <circle
-                      cx={shape.x}
-                      cy={shape.y}
-                      r={shape.radius || 10}
-                      fill="none"
-                      stroke={stroke}
-                      strokeWidth="0.6"
-                      strokeDasharray={dash}
-                    />
-                  ) : (
-                    <rect
-                      x={shape.x - (shape.width || 10) / 2}
-                      y={shape.y - (shape.height || 10) / 2}
-                      width={shape.width || 10}
-                      height={shape.height || 10}
-                      fill="none"
-                      stroke={stroke}
-                      strokeWidth="0.6"
-                      strokeDasharray={dash}
-                    />
-                  )}
-                  {interactive && (
-                    <text
-                      x={shape.x}
-                      y={shape.y}
-                      fontSize="4"
-                      textAnchor="middle"
-                      alignmentBaseline="middle"
-                      fill="rgba(34,197,94,0.9)"
-                      className="font-bold"
-                    >
-                      {shape.label}
-                    </text>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-      )}
-
-      <div className="absolute bottom-6 left-0 right-0 flex justify-center">
+      <div className="mt-6 flex flex-wrap justify-center gap-4 md:gap-6">
         <button
           onClick={handleCapture}
           disabled={isScanning}

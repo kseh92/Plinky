@@ -23,17 +23,25 @@ const getYouTubeVideoId = (url: string | undefined | null) => {
   return null;
 };
 
-const getYouTubeThumbUrl = (url: string | undefined | null) => {
+const getYouTubeThumbUrls = (url: string | undefined | null) => {
   const id = getYouTubeVideoId(url);
   if (!id) return null;
-  return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+  return [
+    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
+    `https://i.ytimg.com/vi/${id}/default.jpg`
+  ];
 };
 
-const VinylRecord: React.FC<{ imageUrl: string, fallbackUrl?: string | null, isSpinning?: boolean }> = ({ imageUrl, fallbackUrl, isSpinning = true }) => {
+const VinylRecord: React.FC<{ imageUrl: string, fallbackUrls?: string[] | null, isSpinning?: boolean }> = ({ imageUrl, fallbackUrls, isSpinning = true }) => {
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.target as HTMLImageElement;
-    if (fallbackUrl && img.src !== fallbackUrl) {
-      img.src = fallbackUrl;
+    const fallbacks = (fallbackUrls || []).filter(Boolean);
+    const idx = Number(img.dataset.fallbackIndex || 0);
+    if (idx < fallbacks.length) {
+      img.dataset.fallbackIndex = String(idx + 1);
+      img.src = fallbacks[idx];
       return;
     }
     img.src = DEFAULT_COVER_URL;
@@ -121,15 +129,16 @@ const RecapCard: React.FC<Props> = ({ recap }) => {
           
           <div className="grid grid-cols-1 gap-4 md:gap-6">
             {recap.recommendedSongs.map((song, idx) => {
-              const youtubeThumbUrl = getYouTubeThumbUrl(song.youtubeMusicUrl);
-              const coverUrl = song.coverImageUrl || youtubeThumbUrl || DEFAULT_COVER_URL;
+              const youtubeThumbUrls = getYouTubeThumbUrls(song.youtubeMusicUrl) || [];
+              const coverUrl = song.coverImageUrl || youtubeThumbUrls[0] || DEFAULT_COVER_URL;
+              const fallbackUrls = song.coverImageUrl ? youtubeThumbUrls : youtubeThumbUrls.slice(1);
               return (
               <div 
                 key={idx}
                 className="w-full bg-white/5 backdrop-blur-md rounded-[1.5rem] md:rounded-[2rem] p-3 md:p-4 md:pr-6 border border-white/10 grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4 md:gap-6 group hover:bg-white/10 hover:border-sky-400/50 hover:shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition-all duration-500"
               >
                 <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10 overflow-hidden w-full">
-                  <VinylRecord imageUrl={coverUrl} fallbackUrl={youtubeThumbUrl} />
+                  <VinylRecord imageUrl={coverUrl} fallbackUrls={fallbackUrls} />
                   
                   <div className="flex flex-col justify-center text-center md:text-left overflow-hidden flex-1">
                     <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 mb-1 md:mb-2">

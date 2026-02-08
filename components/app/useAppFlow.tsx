@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent } from '../../services/types.ts';
 import { PRESET_ZONES } from '../../services/constants';
-import { generateBlueprint, scanDrawing } from '../../services/geminiService';
+import { generateBlueprint, scanDrawing, detectImageKeyword } from '../../services/geminiService';
 
 export type Step =
   | 'landing' | 'pick' | 'provide' | 'scan' | 'confirmScan' | 'play' | 'result' | 'blueprint'
@@ -19,6 +19,16 @@ export function useAppFlow() {
   const [isLoading, setIsLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [sessionStats, setSessionStats] = React.useState<SessionStats | null>(null);
+  const [jacketKeyword, setJacketKeyword] = React.useState<string | null>(null);
+
+  const extractKeywordFromName = (name: string) => {
+    const cleaned = name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
+    const tokens = cleaned.split(/\s+/).filter(Boolean);
+    const stop = new Set(['with', 'and', 'the', 'a', 'an', 'of', 'for', 'to', 'my', 'your', 'paper']);
+    const instrumentWords = new Set(['piano', 'drum', 'drums', 'harp', 'guitar']);
+    const keyword = tokens.find(t => !stop.has(t) && !instrumentWords.has(t));
+    return keyword || null;
+  };
 
   // Handle side effects on step change
   React.useEffect(() => {
@@ -44,6 +54,7 @@ export function useAppFlow() {
 
   const handleCreateCustom = (name: string) => {
     setSelectedType(name);
+    setJacketKeyword(extractKeywordFromName(name));
     setStep('provide');
   };
 
@@ -67,6 +78,7 @@ export function useAppFlow() {
     const zones = PRESET_ZONES[selectedType] || PRESET_ZONES['Piano'];
     setHitZones(zones);
     setCapturedImage(null); // No background image for quick start
+    setJacketKeyword(null);
     setStep('play');
   };
 
@@ -75,13 +87,39 @@ export function useAppFlow() {
     setIsLoading(true);
     setError(null);
     try {
-      const zones = await scanDrawing(selectedType, base64);
+      const timeoutMs = 60000;
+      const zones = await Promise.race([
+        scanDrawing(selectedType, base64),
+        new Promise<never>((_, reject) =>
+          window.setTimeout(() => reject(new Error('Scan timed out.')), timeoutMs)
+        )
+      ]);
+      if (!zones.length) {
+        throw new Error('No zones detected.');
+      }
       setHitZones(zones);
       setCapturedImage(base64);
+      try {
+        const keyword = await Promise.race([
+          detectImageKeyword(base64),
+          new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 5000))
+        ]);
+        setJacketKeyword(keyword);
+      } catch {
+        setJacketKeyword(null);
+      }
       setStep('confirmScan');
     } catch (err) {
       console.error("Scan Error:", err);
-      setError('Make sure your drawing is clear and has enough light!');
+      const fallback = PRESET_ZONES[selectedType] || PRESET_ZONES['Piano'];
+      if (fallback?.length) {
+        setHitZones(fallback);
+        setCapturedImage(base64);
+        setJacketKeyword(null);
+        setStep('confirmScan');
+      } else {
+        setError('Make sure your drawing is clear and has enough light!');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -102,7 +140,8 @@ export function useAppFlow() {
         noteCount: stats.noteCount,
         uniqueNotesCount: stats.uniqueNotes.size,
         intensity: stats.noteCount / (stats.duration || 1),
-        eventLog: stats.eventLog
+        eventLog: stats.eventLog,
+        jacketKeyword: jacketKeyword || undefined
       });
     }
     setRecording(blob);
@@ -113,6 +152,7 @@ export function useAppFlow() {
     setStep('landing');
     setSelectedType(null);
     setCapturedImage(null);
+    setJacketKeyword(null);
   };
 
   return {

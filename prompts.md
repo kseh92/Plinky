@@ -59,3 +59,11 @@
 ## 2026-02-08: Playback Stability & Sustained Notes
 - **Prompt**: "When playing the instuments in InstumentPlayer very quickly, Max polyphony exceeded. Note dropped. appears. Any way to prevent this? ... Can it keep making sound if I have finger on the hit zones? ... What I meant was if I keep my finger on a note, it should not keep clicking multiple times but one sound lasts long."
 - **Result**: Increased polyphony limits and switched to true note hold behavior (start on enter, release on exit) for sustained sounds.
+
+## 2026-02-08: Scan Reliability & Camera Fixes
+- **Prompt**: "CameraScanner not working (empty zones). Fix reversed camera. Add logging for scan/blueprint. If scan takes too long or fails, fall back to preset zones. Map drum zones to drum sounds. Fix harp scan note errors."
+- **Result**: Improved scan robustness (MIME detection, percent-based boxes, empty-zone guard, scan timeout with preset fallback). Added scan/blueprint timing logs, fixed mirrored camera preview, mapped drum scan zones to preset drum sounds, and normalized harp notes with default octave.
+
+## 2026-02-08: Album Jacket & Title Keywords
+- **Prompt**: "If blueprint is made through scan or explore, try to find any object in the photo or prompt to use as a keyword in the album jacket generation. And use the keyword in the song's name generation as well."
+- **Result**: Extracted a keyword from scan images (best-effort object detection) or explore custom names and passed it into album jacket generation and mix title creation.

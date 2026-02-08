@@ -39,3 +39,23 @@
 ## 2026-02-07: AI Composer Reliability & Share UX
 - **Prompt**: "AI Composer should appear when the Recap generation is successful... Remove TTS streaming, use Lyria, fix errors, improve recap logging, and adjust sharing UX."
 - **Result**: Refactored Lyria composer logic into `services/aiComposer.ts` using the SDK live client, fixed invalid WS config fields, added detailed composer logging, parallelized recap + mix, made album jacket lazy, added availability filtering, moved share to direct Web Share API, and showed share only after mix finished. 
+
+## 2026-02-08: AI Composer Duration & SDK Close
+- **Prompt**: "In the lyria composer, I want to make sure the song generated to be between 30 - 60 seconds. If SDK connection is closed after composing the song, it does not have to show error message. Rather why don't we just close the SDK connection as soon as the AIcomposer process is finished?"
+- **Result**: Clamped AI Composer duration to 30–60s and made SDK close cleanly without errors on intentional shutdown.
+
+## 2026-02-08: Recap Tone & Recommendation Rules
+- **Prompt**: "In the result screen, when it makes the session recap I want the criticQuote to be less serious and shorter... Make it sound appropriate for like 6 years old... I want the recommendations to be more diverse but not straying too much. It always shows Taylor Swift's Shake it off. Also if you are showing an artist's name in the artistComparison it should be included as no.1 in the Recommended songs."
+- **Result**: Adjusted recap prompt for kid-friendly short quotes with exactly one emoji. Enforced diverse recommendations (no repeated artists), and ensured `artistComparison` appears as the first recommendation with post-processing.
+
+## 2026-02-08: Recap Card Layout Tweaks
+- **Prompt**: "In the Recap Card, Future {recap.artistComparison} is not centered and too long... Showing the Studio picks, if the song title is too long, Play button goes out of the box... Box for Each recommended songs can be smaller especially the height. The gap between these boxes can be smaller as well. I want the VinylRecord it self to be smaller around 30%."
+- **Result**: Centered and wrapped artist comparison, fixed Play button alignment with a grid layout, tightened spacing, and reduced card/typography sizes. Scaled VinylRecord down ~30%.
+
+## 2026-02-08: YouTube Thumbnails & Link Safety
+- **Prompt**: "In the studio picks, if the youtube videos are properly connected, is it possible to show the thumbnails of the video for the VinylRecord? ... When getting the youtube img url, Failed to load resource: the server responded with a status of 404 () ... title showing on the VinylRecord and actual link is different ... I still want to keep the auto play for the youtube link. Now it does not connect into the actual link and all thumbnails are gone. Is there any other solution to this mismatching bug?"
+- **Result**: Added YouTube thumbnail fallback chain and oEmbed-based validation for link/title mismatches. Autoplay is preserved for matching links; mismatches fall back to safe YouTube Music search.
+
+## 2026-02-08: Playback Stability & Sustained Notes
+- **Prompt**: "When playing the instuments in InstumentPlayer very quickly, Max polyphony exceeded. Note dropped. appears. Any way to prevent this? ... Can it keep making sound if I have finger on the hit zones? ... What I meant was if I keep my finger on a note, it should not keep clicking multiple times but one sound lasts long."
+- **Result**: Increased polyphony limits and switched to true note hold behavior (start on enter, release on exit) for sustained sounds.

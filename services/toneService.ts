@@ -1,3 +1,4 @@
+
 import * as Tone from 'tone';
 import { MixingPreset, PerformanceEvent, InstrumentType } from './types';
 
@@ -54,7 +55,7 @@ class ToneService {
         release: 0.25
       });
       this.masterDistortion = new Tone.Distortion(0);
-      this.masterReverb = new Tone.Reverb({ decay: 2.5, wet: 0.2 });
+      this.masterReverb = new Tone.Reverb({ decay: 1.5, wet: 0.15 }); // Reduced decay
       this.masterLimiter = new Tone.Limiter(-1);
       this.masterOutput = new Tone.Gain(1);
 
@@ -74,7 +75,7 @@ class ToneService {
         pitchDecay: 0.05,
         octaves: 6,
         oscillator: { type: 'sine' },
-        envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
+        envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.8 }
       }).connect(output);
 
       this.snare = new Tone.NoiseSynth({
@@ -91,7 +92,7 @@ class ToneService {
       }).connect(output);
 
       this.crash = new Tone.MetalSynth({
-        envelope: { attack: 0.005, decay: 1.2, release: 1.2 },
+        envelope: { attack: 0.005, decay: 0.8, release: 0.8 },
         harmonicity: 6.5,
         modulationIndex: 40,
         resonance: 2500,
@@ -105,26 +106,26 @@ class ToneService {
       // --- Melodic ---
       this.piano = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'triangle' },
-        envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
+        envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.4 } // Tighter envelope
       }).connect(output);
-      this.piano.maxPolyphony = 64;
+      this.piano.maxPolyphony = 32;
 
       // Harp: plucky + airy chain
       this.harpFilter = new Tone.Filter({ type: 'highpass', frequency: 140, rolloff: -12 });
-      this.harpChorus = new Tone.Chorus({ frequency: 0.8, delayTime: 3.5, depth: 0.25, wet: 0.25 }).start();
-      this.harpReverb = new Tone.Reverb({ decay: 4.2, wet: 0.45, preDelay: 0.02 });
+      this.harpChorus = new Tone.Chorus({ frequency: 0.8, delayTime: 3.5, depth: 0.25, wet: 0.2 }).start();
+      this.harpReverb = new Tone.Reverb({ decay: 2.5, wet: 0.3, preDelay: 0.02 }); // Reduced reverb
       this.harpGain = new Tone.Gain(0.9);
 
       this.harp = new Tone.PolySynth(Tone.FMSynth, {
         harmonicity: 3,
         modulationIndex: 9,
         oscillator: { type: 'sine' },
-        envelope: { attack: 0.001, decay: 0.35, sustain: 0.02, release: 2.4 },
+        envelope: { attack: 0.001, decay: 0.35, sustain: 0.02, release: 1.2 }, // Tighter release
         modulation: { type: 'sine' },
         modulationEnvelope: { attack: 0.002, decay: 0.15, sustain: 0, release: 0.2 }
       });
       this.harp.chain(this.harpFilter, this.harpChorus, this.harpReverb, this.harpGain, output);
-      this.harp.maxPolyphony = 96;
+      this.harp.maxPolyphony = 48;
 
       this.bassSynth = new Tone.MonoSynth({
         oscillator: { type: 'fmsquare' },
@@ -141,9 +142,9 @@ class ToneService {
 
       this.padSynth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'sine' },
-        envelope: { attack: 0.5, decay: 0.5, sustain: 1, release: 2 }
+        envelope: { attack: 0.5, decay: 0.5, sustain: 0.8, release: 1.2 }
       }).connect(new Tone.Gain(0.3).connect(output));
-      this.padSynth.maxPolyphony = 32;
+      this.padSynth.maxPolyphony = 16;
 
       this.recorder = new Tone.Recorder();
       this.masterOutput.connect(this.recorder);
@@ -204,64 +205,16 @@ class ToneService {
 
   private parseNote(note: string): string {
     const noteMap: Record<string, string> = {
-      c1: 'C1',
-      cs1: 'C#1',
-      d1: 'D1',
-      ds1: 'D#1',
-      e1: 'E1',
-      f1: 'F1',
-      fs1: 'F#1',
-      g1: 'G1',
-      gs1: 'G#1',
-      a1: 'A1',
-      as1: 'A#1',
-      b1: 'B1',
-      c2: 'C2',
-      c3: 'C3',
-      cs3: 'C#3',
-      d3: 'D3',
-      ds3: 'D#3',
-      e3: 'E3',
-      f3: 'F3',
-      fs3: 'F#3',
-      g3: 'G3',
-      gs3: 'G#3',
-      a3: 'A3',
-      as3: 'A#3',
-      b3: 'B3',
-      c4: 'C4',
-      cs4: 'C#4',
-      d4: 'D4',
-      ds4: 'D#4',
-      e4: 'E4',
-      f4: 'F4',
-      fs4: 'F#4',
-      g4: 'G4',
-      gs4: 'G#4',
-      a4: 'A4',
-      as4: 'A#4',
-      b4: 'B4',
-      c5: 'C5',
-      cs5: 'C#5',
-      d5: 'D5',
-      ds5: 'D#5',
-      e5: 'E5',
-      f5: 'F5',
-      fs5: 'F#5',
-      g5: 'G5',
-      gs5: 'G#5',
-      a5: 'A5',
-      as5: 'A#5',
-      b5: 'B5',
-      c6: 'C6',
-      d6: 'D6',
-      e6: 'E6',
-      f6: 'F6',
-      g6: 'G6'
+      c1: 'C1', cs1: 'C#1', d1: 'D1', ds1: 'D#1', e1: 'E1', f1: 'F1', fs1: 'F#1', g1: 'G1', gs1: 'G#1', a1: 'A1', as1: 'A#1', b1: 'B1',
+      c2: 'C2', c3: 'C3', cs3: 'C#3', d3: 'D3', ds3: 'D#3', e3: 'E3', f3: 'F3', fs3: 'F#3', g3: 'G3', gs3: 'G#3', a3: 'A3', as3: 'A#3', b3: 'B3',
+      c4: 'C4', cs4: 'C#4', d4: 'D4', ds4: 'D#4', e4: 'E4', f4: 'F4', fs4: 'F#4', g4: 'G4', gs4: 'G#4', a4: 'A4', as4: 'A#4', b4: 'B4',
+      c5: 'C5', cs5: 'C#5', d5: 'D5', ds5: 'D#5', e5: 'E5', f5: 'F5', fs5: 'F#5', g5: 'G5', gs5: 'G#5', a5: 'A5', as5: 'A#5', b5: 'B5',
+      c6: 'C6', d6: 'D6', e6: 'E6', f6: 'F6', g6: 'G6'
     };
     return noteMap[note.toLowerCase()] || note.toUpperCase();
   }
 
+  // Changed play to triggerAttack for better interaction
   play(soundId: string | undefined | null, time?: number, currentInstrument?: InstrumentType) {
     if (!this.initialized || !soundId) return;
     const triggerTime = time !== undefined ? time : Tone.now();
@@ -277,12 +230,12 @@ class ToneService {
 
     try {
       if (prefix === 'bass' || id.includes('bass')) {
-        this.bassSynth?.triggerAttackRelease(this.parseNote(id), '4n', triggerTime);
+        this.bassSynth?.triggerAttack(this.parseNote(id), triggerTime);
       } else if (prefix === 'pad') {
-        this.padSynth?.triggerAttackRelease(this.parseNote(id), '1n', triggerTime);
+        this.padSynth?.triggerAttack(this.parseNote(id), triggerTime);
       } else if (prefix === 'harp' || currentInstrument === 'Harp' || id.startsWith('harp_')) {
         const harpNote = this.parseNote(id.replace('harp_', ''));
-        this.harp?.triggerAttackRelease(harpNote, '2n', triggerTime, 0.85);
+        this.harp?.triggerAttack(harpNote, triggerTime);
       } else if (
         prefix === 'drum' ||
         id.includes('kick') ||
@@ -301,44 +254,6 @@ class ToneService {
           else this.tomLow?.triggerAttackRelease(95, '16n', triggerTime);
         }
       } else {
-        this.piano?.triggerAttackRelease(this.parseNote(id), '2n', triggerTime);
-      }
-    } catch (e) {
-      console.warn(`Playback Error [${fullId}]:`, e);
-    }
-  }
-
-  startNote(soundId: string | undefined | null, currentInstrument?: InstrumentType) {
-    if (!this.initialized || !soundId) return;
-    const triggerTime = Tone.now();
-    const fullId = soundId.toLowerCase().trim();
-    const parts = fullId.split(':');
-    const prefix = parts.length > 1 ? parts[0] : null;
-    const id = parts.length > 1 ? parts[1] : parts[0];
-
-    if (this._recordingStart > 0) {
-      this.eventLog.push({ timestamp: performance.now() - this._recordingStart, sound: fullId });
-    }
-
-    try {
-      if (prefix === 'bass' || id.includes('bass')) {
-        this.bassSynth?.triggerAttack(this.parseNote(id), triggerTime);
-      } else if (prefix === 'pad') {
-        this.padSynth?.triggerAttack(this.parseNote(id), triggerTime);
-      } else if (prefix === 'harp' || currentInstrument === 'Harp' || id.startsWith('harp_')) {
-        const harpNote = this.parseNote(id.replace('harp_', ''));
-        this.harp?.triggerAttack(harpNote, triggerTime, 0.85);
-      } else if (
-        prefix === 'drum' ||
-        id.includes('kick') ||
-        id.includes('snare') ||
-        id.includes('hihat') ||
-        id.includes('crash') ||
-        id.includes('tom')
-      ) {
-        // Drums are one-shot; keep existing behavior.
-        this.play(soundId, undefined, currentInstrument);
-      } else {
         this.piano?.triggerAttack(this.parseNote(id), triggerTime);
       }
     } catch (e) {
@@ -346,9 +261,10 @@ class ToneService {
     }
   }
 
-  stopNote(soundId: string | undefined | null, currentInstrument?: InstrumentType) {
+  // New release function to stop note specifically
+  release(soundId: string | undefined | null, time?: number, currentInstrument?: InstrumentType) {
     if (!this.initialized || !soundId) return;
-    const triggerTime = Tone.now();
+    const releaseTime = time !== undefined ? time : Tone.now();
     const fullId = soundId.toLowerCase().trim();
     const parts = fullId.split(':');
     const prefix = parts.length > 1 ? parts[0] : null;
@@ -356,26 +272,19 @@ class ToneService {
 
     try {
       if (prefix === 'bass' || id.includes('bass')) {
-        this.bassSynth?.triggerRelease(triggerTime);
+        this.bassSynth?.triggerRelease(releaseTime);
       } else if (prefix === 'pad') {
-        this.padSynth?.triggerRelease(this.parseNote(id), triggerTime);
+        this.padSynth?.triggerRelease(this.parseNote(id), releaseTime);
       } else if (prefix === 'harp' || currentInstrument === 'Harp' || id.startsWith('harp_')) {
         const harpNote = this.parseNote(id.replace('harp_', ''));
-        this.harp?.triggerRelease(harpNote, triggerTime);
+        this.harp?.triggerRelease(harpNote, releaseTime);
       } else if (
-        prefix === 'drum' ||
-        id.includes('kick') ||
-        id.includes('snare') ||
-        id.includes('hihat') ||
-        id.includes('crash') ||
-        id.includes('tom')
+        prefix === 'piano' || (!prefix && !id.includes('kick') && !id.includes('snare') && !id.includes('hihat') && !id.includes('crash') && !id.includes('tom'))
       ) {
-        // Drums are one-shot; nothing to release.
-      } else {
-        this.piano?.triggerRelease(this.parseNote(id), triggerTime);
+        this.piano?.triggerRelease(this.parseNote(id), releaseTime);
       }
     } catch (e) {
-      console.warn(`Playback Error [${fullId}]:`, e);
+      console.warn(`Release Error [${fullId}]:`, e);
     }
   }
 
@@ -386,6 +295,10 @@ class ToneService {
     log.forEach((event) => {
       const eventId = Tone.getTransport().schedule((time) => {
         this.play(event.sound, time);
+        // Automatically schedule a release for replay safety
+        Tone.getTransport().schedule((rTime) => {
+          this.release(event.sound, rTime);
+        }, (event.timestamp + 500) / 1000); 
       }, event.timestamp / 1000);
       this.scheduledEvents.push(eventId);
     });

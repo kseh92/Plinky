@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useState } from 'react';
+
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { HitZone, PerformanceEvent, InstrumentType } from '../../services/types';
 import { toneService } from '../../services/toneService';
@@ -11,6 +12,9 @@ interface Particle {
   life: number;
   color: string;
   size: number;
+  type: string; // 'star' | 'note'
+  rotation: number;
+  rotationSpeed: number;
 }
 
 interface Props {
@@ -53,13 +57,24 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
   const [isLoading, setIsLoading] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const [zoneScale, setZoneScale] = useState(1.0); 
   
-  // Stats tracking
   const noteCountRef = useRef(0);
   const uniqueNotesRef = useRef<Set<string>>(new Set());
-  
   const activeHitsRef = useRef<Set<string>>(new Set());
   const particlesRef = useRef<Particle[]>([]);
+
+  const instrumentCenter = useMemo(() => {
+    if (hitZones.length === 0) return { x: 50, y: 50 };
+    const minX = Math.min(...hitZones.map(z => z.x));
+    const minY = Math.min(...hitZones.map(z => z.y));
+    const maxX = Math.max(...hitZones.map(z => z.x + z.width));
+    const maxY = Math.max(...hitZones.map(z => z.y + z.height));
+    return {
+      x: (minX + maxX) / 2,
+      y: (minY + maxY) / 2
+    };
+  }, [hitZones]);
 
   useEffect(() => {
     const initMediaPipe = async () => {
@@ -82,7 +97,6 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
         setIsLoading(false);
       }
     };
-
     initMediaPipe();
 
     const startCam = async () => {
@@ -103,6 +117,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
       if (videoRef.current?.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
       }
+      toneService.stopAll(); 
     };
   }, []);
 
@@ -110,7 +125,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
     setIsAudioLoading(true);
     await toneService.init(); 
     toneService.applyMixingPreset({
-      reverbAmount: instrumentType === 'Harp' ? 0.4 : 0.2,
+      reverbAmount: instrumentType === 'Harp' ? 0.3 : 0.15,
       compressionThreshold: -24,
       bassBoost: 2,
       midBoost: 0,
@@ -124,7 +139,6 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
 
   const handleStop = async () => {
     const result = await toneService.stopRecording();
-    
     onExit(result?.blob || null, {
       noteCount: noteCountRef.current,
       uniqueNotes: uniqueNotesRef.current,
@@ -134,17 +148,102 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
   };
 
   const spawnParticles = (x: number, y: number, color: string) => {
-    for (let i = 0; i < 15; i++) {
+    const symbols = ['⭐', '♪', '♫', '♬', '✨', '🎈'];
+    for (let i = 0; i < 8; i++) {
       particlesRef.current.push({
         x,
         y,
-        vx: (Math.random() - 0.5) * 15,
-        vy: (Math.random() - 0.5) * 15,
+        vx: (Math.random() - 0.5) * 20,
+        vy: (Math.random() * -15) - 5,
         life: 1.0,
         color,
-        size: Math.random() * 8 + 4
+        size: Math.random() * 20 + 15,
+        type: symbols[Math.floor(Math.random() * symbols.length)],
+        rotation: Math.random() * Math.PI * 2,
+        rotationSpeed: (Math.random() - 0.5) * 0.2
       });
     }
+  };
+
+  const drawWobblyPath = (ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, jitter: number = 3.5) => {
+    const segments = 4;
+    const dx = (x2 - x1) / segments;
+    const dy = (y2 - y1) / segments;
+
+    let cx = x1;
+    let cy = y1;
+    ctx.moveTo(x1, y1);
+
+    for (let i = 1; i <= segments; i++) {
+      const nextX = x1 + dx * i;
+      const nextY = y1 + dy * i;
+      const midX = (cx + nextX) / 2 + (Math.random() - 0.5) * jitter * 2.0;
+      const midY = (cy + nextY) / 2 + (Math.random() - 0.5) * jitter * 2.0;
+      ctx.quadraticCurveTo(midX, midY, nextX, nextY);
+      cx = nextX;
+      cy = nextY;
+    }
+  };
+
+  const drawRoughRect = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number, jitter: number = 3.5, isOpaque: boolean = false) => {
+    const passes = 3; 
+    const oldAlpha = ctx.globalAlpha;
+    const oldShadowBlur = ctx.shadowBlur;
+    const oldShadowColor = ctx.shadowColor;
+
+    // Apply a subtle paper-style drop shadow for marker depth
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+    ctx.shadowOffsetX = 1;
+    ctx.shadowOffsetY = 1;
+    
+    for (let p = 0; p < passes; p++) {
+      ctx.beginPath();
+      const ox = x + (Math.random() - 0.5) * jitter * 0.5;
+      const oy = y + (Math.random() - 0.5) * jitter * 0.5;
+      const ow = w + (Math.random() - 0.5) * jitter * 0.4;
+      const oh = h + (Math.random() - 0.5) * jitter * 0.4;
+
+      drawWobblyPath(ctx, ox + r, oy, ox + ow - r, oy, jitter);
+      drawWobblyPath(ctx, ox + ow, oy + r, ox + ow, oy + oh - r, jitter);
+      drawWobblyPath(ctx, ox + ow - r, oy + oh, ox + r, oy + oh, jitter);
+      drawWobblyPath(ctx, ox, oy + oh - r, ox, oy + r, jitter);
+      ctx.closePath();
+      
+      if (p === 0) {
+        if (isOpaque) ctx.globalAlpha = 1.0;
+        ctx.fill();
+        ctx.globalAlpha = oldAlpha;
+      }
+      // Outlines are always opaque black marker
+      ctx.stroke();
+    }
+    
+    ctx.shadowBlur = oldShadowBlur;
+    ctx.shadowColor = oldShadowColor;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+  };
+
+  const drawRoughEllipse = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => {
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const rx = w / 2;
+    const ry = h / 2;
+    
+    ctx.beginPath();
+    for (let i = 0; i <= 360; i += 15) {
+        const angle = (i * Math.PI) / 180;
+        const jitterX = (Math.random() - 0.5) * 6;
+        const jitterY = (Math.random() - 0.5) * 6;
+        const px = cx + rx * Math.cos(angle) + jitterX;
+        const py = cy + ry * Math.sin(angle) + jitterY;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
   };
 
   useEffect(() => {
@@ -156,36 +255,32 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
         const results = landmarker.detectForVideo(videoRef.current, performance.now());
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
-          // Set canvas size to match video element display size
           canvasRef.current.width = videoRef.current.clientWidth;
           canvasRef.current.height = videoRef.current.clientHeight;
-
           ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          
           const frameHits = new Set<string>();
 
           if (results.landmarks) {
             results.landmarks.forEach(landmarks => {
-              const indexTip = landmarks[8];
-              const thumbTip = landmarks[4];
-              [indexTip, thumbTip].forEach(tip => {
-                const x = tip.x;
-                const y = tip.y;
+              [8, 4].forEach(tipIndex => {
+                const tip = landmarks[tipIndex];
                 hitZones.forEach(zone => {
-                  const zX = zone.x / 100;
-                  const zY = zone.y / 100;
-                  const zW = zone.width / 100;
-                  const zH = zone.height / 100;
-                  if (x >= zX && x <= zX + zW && y >= zY && y <= zY + zH) {
+                  const sW = zone.width * zoneScale;
+                  const sH = zone.height * zoneScale;
+                  const sX = instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
+                  const sY = instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
+
+                  if (tip.x >= sX/100 && tip.x <= (sX + sW)/100 && 
+                      tip.y >= sY/100 && tip.y <= (sY + sH)/100) {
                     frameHits.add(zone.sound);
                   }
                 });
                 ctx.beginPath();
-                ctx.arc(tip.x * canvasRef.current.width, tip.y * canvasRef.current.height, 12, 0, 2 * Math.PI);
-                ctx.fillStyle = tip === indexTip ? 'rgba(239, 68, 68, 0.8)' : 'rgba(59, 130, 246, 0.8)';
+                ctx.arc(tip.x * canvasRef.current.width, tip.y * canvasRef.current.height, 15, 0, 2 * Math.PI);
+                ctx.fillStyle = tipIndex === 8 ? 'rgba(239, 68, 68, 0.85)' : 'rgba(59, 130, 246, 0.85)';
                 ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 3;
-                ctx.stroke();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
               });
             });
           }
@@ -193,14 +288,19 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
           frameHits.forEach(sound => {
             if (!activeHitsRef.current.has(sound)) {
               const taggedSound = instrumentType === 'Harp' ? `harp:${sound}` : sound;
-              toneService.startNote(taggedSound, instrumentType);
+              toneService.play(taggedSound, undefined, instrumentType);
               noteCountRef.current += 1;
               uniqueNotesRef.current.add(sound);
               const zone = hitZones.find(z => z.sound === sound);
               if (zone) {
-                const px = (zone.x + zone.width / 2) / 100 * canvasRef.current.width;
-                const py = (zone.y + zone.height / 2) / 100 * canvasRef.current.height;
-                spawnParticles(px, py, '#2563eb');
+                const sW = zone.width * zoneScale;
+                const sH = zone.height * zoneScale;
+                const sX = instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
+                const sY = instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
+                const px = (sX + sW / 2) / 100 * canvasRef.current.width;
+                const py = (sY + sH / 2) / 100 * canvasRef.current.height;
+                const pColor = instrumentType === 'Piano' ? '#fff' : instrumentType === 'Drum' ? '#f87171' : '#fbbf24';
+                spawnParticles(px, py, pColor);
               }
             }
           });
@@ -208,24 +308,21 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
           activeHitsRef.current.forEach(sound => {
             if (!frameHits.has(sound)) {
               const taggedSound = instrumentType === 'Harp' ? `harp:${sound}` : sound;
-              toneService.stopNote(taggedSound, instrumentType);
+              toneService.release(taggedSound, undefined, instrumentType);
             }
           });
-
           activeHitsRef.current = frameHits;
 
           particlesRef.current = particlesRef.current.filter(p => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.vy += 0.5;
-            p.life -= 0.025;
+            p.x += p.vx; p.y += p.vy; p.vy += 0.8; p.vx *= 0.98; p.rotation += p.rotationSpeed; p.life -= 0.04;
             if (p.life > 0) {
-              ctx.globalAlpha = p.life;
-              ctx.fillStyle = p.color;
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.globalAlpha = 1;
+              ctx.save();
+              ctx.translate(p.x, p.y); ctx.rotate(p.rotation);
+              ctx.globalAlpha = p.life; ctx.shadowBlur = 10; ctx.shadowColor = p.color;
+              ctx.fillStyle = p.color; ctx.font = `${p.size * p.life}px Arial`;
+              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              ctx.fillText(p.type, 0, 0);
+              ctx.restore();
               return true;
             }
             return false;
@@ -233,26 +330,47 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
 
           hitZones.forEach(zone => {
             const isActive = frameHits.has(zone.sound);
-            const rectX = (zone.x / 100) * canvasRef.current.width;
-            const rectY = (zone.y / 100) * canvasRef.current.height;
-            const rectW = (zone.width / 100) * canvasRef.current.width;
-            const rectH = (zone.height / 100) * canvasRef.current.height;
-            const baseColor = instrumentType === 'Harp' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(59, 130, 246, 0.2)';
-            const activeColor = instrumentType === 'Harp' ? 'rgba(251, 191, 36, 0.6)' : 'rgba(239, 68, 68, 0.5)';
-            const strokeColor = instrumentType === 'Harp' ? '#fbbf24' : (isActive ? '#ef4444' : 'rgba(59, 130, 246, 0.6)');
+            
+            const sW_raw = zone.width * zoneScale;
+            const sH_raw = zone.height * zoneScale;
+            const sX_raw = instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
+            const sY_raw = instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
 
-            ctx.fillStyle = isActive ? activeColor : baseColor;
-            ctx.strokeStyle = strokeColor;
-            ctx.lineWidth = isActive ? 10 : (instrumentType === 'Harp' ? 2 : 4);
-            ctx.lineJoin = 'round';
-            ctx.strokeRect(rectX, rectY, rectW, rectH);
-            ctx.fillRect(rectX, rectY, rectW, rectH);
-            ctx.fillStyle = isActive ? '#fff' : (instrumentType === 'Harp' ? '#92400e' : '#1e3a8a');
-            ctx.font = 'bold 18px Fredoka One';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            const labelY = zone.height > 30 ? rectY + (rectH * 0.8) : rectY + (rectH / 2);
-            ctx.fillText(zone.label.toUpperCase(), rectX + rectW/2, labelY);
+            const rectX = (sX_raw / 100) * canvasRef.current.width;
+            const rectY = (sY_raw / 100) * canvasRef.current.height;
+            const rectW = (sW_raw / 100) * canvasRef.current.width;
+            const rectH = (sH_raw / 100) * canvasRef.current.height;
+            
+            ctx.lineWidth = isActive ? 10 : 8;
+
+            if (instrumentType === 'Piano') {
+              const isSharp = zone.sound.includes('#') || zone.sound.includes('s');
+              ctx.strokeStyle = '#000'; // Black marker stroke
+              
+              if (isSharp) {
+                 // Black keys: solid opaque black as requested
+                 ctx.fillStyle = isActive ? '#4a4a4a' : '#000'; 
+                 drawRoughRect(ctx, rectX, rectY, rectW, rectH, 6, 2.0, true); 
+              } else {
+                 // White keys: semi-transparent white (rgba 0.4) as requested
+                 ctx.fillStyle = isActive ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
+                 drawRoughRect(ctx, rectX, rectY, rectW, rectH, 10, 3.5, false); 
+              }
+            } else if (instrumentType === 'Drum') {
+              const isCymbal = zone.sound.includes('crash') || zone.sound.includes('hihat');
+              ctx.fillStyle = isCymbal ? (isActive ? 'rgba(252, 211, 77, 0.75)' : 'rgba(251, 191, 36, 0.5)') : (isActive ? 'rgba(248, 113, 113, 0.75)' : 'rgba(239, 68, 68, 0.5)');
+              ctx.strokeStyle = '#fff';
+              drawRoughEllipse(ctx, rectX, rectY, rectW, rectH);
+            } else if (instrumentType === 'Harp') {
+              ctx.strokeStyle = isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(251, 191, 36, 0.75)';
+              ctx.lineWidth = isActive ? 12 : 6;
+              ctx.beginPath();
+              drawWobblyPath(ctx, rectX + rectW/2, rectY, rectX + rectW/2, rectY + rectH, 2);
+              ctx.stroke();
+            } else {
+              ctx.strokeStyle = isActive ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.45)';
+              drawRoughRect(ctx, rectX, rectY, rectW, rectH, 15);
+            }
           });
         }
       }
@@ -260,31 +378,59 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
     };
     render();
     return () => cancelAnimationFrame(animationId);
-  }, [landmarker, hitZones, hasStarted, instrumentType]);
+  }, [landmarker, hitZones, hasStarted, instrumentType, zoneScale, instrumentCenter]);
 
   return (
     <div className="fixed inset-0 bg-black z-50 overflow-hidden">
-      {/* Full Screen Camera View */}
       <div className="absolute inset-0 z-10 overflow-hidden">
-        <video
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover -scale-x-100"
-          autoPlay
-          muted
-          playsInline
-        />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10 pointer-events-none"
-        />
+        <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100" autoPlay muted playsInline />
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10 pointer-events-none" />
       </div>
 
-      {/* PEeking Mascot Player - Floating over full screen */}
-      <div className="absolute left-[2%] bottom-[-5%] w-[150px] md:w-[250px] z-20 pointer-events-none transform transition-transform duration-500 animate-float">
+      {hasStarted && (
+        <div className="absolute right-8 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-6 bg-white/20 backdrop-blur-md p-8 rounded-[3rem] border-[6px] border-white/40 shadow-2xl animate-in slide-in-from-right-10 duration-500">
+           <div className="flex flex-col items-center gap-2">
+             <span className="text-white font-black uppercase tracking-widest text-[10px]">Instrument Size</span>
+             <span className="text-white font-black text-2xl">{Math.round(zoneScale * 100)}%</span>
+           </div>
+           
+           <div className="h-48 flex items-center">
+             <input 
+               type="range" 
+               min="0.5" 
+               max="2.5" 
+               step="0.1" 
+               value={zoneScale} 
+               onChange={(e) => setZoneScale(parseFloat(e.target.value))}
+               className="h-40 w-4 appearance-none bg-white/30 rounded-full outline-none cursor-pointer"
+               style={{ 
+                 WebkitAppearance: 'slider-vertical',
+                 accentColor: '#FF6B6B'
+               }}
+             />
+           </div>
+
+           <div className="flex flex-col gap-2">
+             <button 
+               onClick={() => setZoneScale(prev => Math.min(2.5, prev + 0.2))}
+               className="w-10 h-10 bg-white/40 hover:bg-white/60 rounded-full text-white font-black text-xl transition-all shadow-md"
+             >
+               +
+             </button>
+             <button 
+               onClick={() => setZoneScale(prev => Math.max(0.5, prev - 0.2))}
+               className="w-10 h-10 bg-white/40 hover:bg-white/60 rounded-full text-white font-black text-xl transition-all shadow-md"
+             >
+               -
+             </button>
+           </div>
+        </div>
+      )}
+
+      <div className="absolute left-[2%] bottom-[-5%] w-[150px] md:w-[250px] z-20 pointer-events-none animate-float">
          <MascotPlayer className="w-full h-full opacity-80 drop-shadow-2xl" />
       </div>
 
-      {/* Loading Overlay */}
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/90 text-blue-600 font-bold text-2xl z-[100]">
           <div className="text-center">
@@ -294,23 +440,17 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
           </div>
         </div>
       )}
-
-      {/* Start Overlay */}
       {!hasStarted && !isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-[#1e3a8a]/60 backdrop-blur-md z-[60] p-4">
           <div className="bg-white/95 rounded-[4rem] shadow-2xl border-[12px] border-white/60 p-2 max-w-md w-full animate-in zoom-in-95 duration-300">
             <div className="bg-white rounded-[3rem] p-10 flex flex-col items-center text-center shadow-xl">
-              <div className="text-7xl mb-6 drop-shadow-lg">🎨</div>
-              <h3 className="text-4xl md:text-5xl font-black text-[#1e3a8a] mb-4 leading-tight uppercase tracking-tighter" style={{ fontFamily: 'Fredoka One' }}>
-                Ready to Rock?
-              </h3>
-              <p className="text-gray-500 mb-10 font-bold text-lg leading-relaxed">
-                Your drawing zones are mapped. Touch the squares on the screen with your fingers!
-              </p>
+              <div className="text-7xl mb-6">🎨</div>
+              <h3 className="text-4xl font-black text-[#1e3a8a] mb-4 uppercase tracking-tighter">Ready to Rock?</h3>
+              <p className="text-gray-500 mb-10 font-bold text-lg">Your drawing is ready. Move your fingers into the zones to play!</p>
               <button
                 onClick={handleStart}
                 disabled={isAudioLoading}
-                className="w-full py-8 bg-[#FF6B6B] hover:bg-[#D64545] text-white text-3xl font-black rounded-full shadow-[0_12px_0_#D64545] hover:translate-y-1 hover:shadow-[0_8px_0_#D64545] active:translate-y-[12px] active:shadow-none transition-all duration-150 uppercase tracking-widest"
+                className="w-full py-8 bg-[#FF6B6B] text-white text-3xl font-black rounded-full shadow-[0_12px_0_#D64545] hover:translate-y-1 transition-all uppercase tracking-widest"
               >
                 {isAudioLoading ? 'Warming up...' : "LET'S ROCK!"}
               </button>
@@ -318,25 +458,15 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
           </div>
         </div>
       )}
-
-      {/* HUD & Exit Control */}
       {hasStarted && (
-        <>
-          <div className="absolute top-8 left-8 z-40">
-             <div className="bg-white/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/40 shadow-xl">
-                <span className="text-white font-black uppercase tracking-widest text-sm">Live Performance</span>
-             </div>
-          </div>
-          
-          <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center z-40 px-6">
-            <button
-              onClick={handleStop}
-              className="max-w-[280px] w-full py-5 bg-white/90 backdrop-blur-md text-red-600 border-4 border-red-600 rounded-full font-black text-xl shadow-[0_10px_25px_rgba(0,0,0,0.3)] hover:bg-white transition-all active:scale-95 uppercase tracking-wider"
-            >
-              ⏹️ FINISH SHOW
-            </button>
-          </div>
-        </>
+        <div className="absolute bottom-8 left-0 right-0 flex justify-center z-40 px-6">
+          <button
+            onClick={handleStop}
+            className="max-w-[280px] w-full py-5 bg-white/90 text-red-600 border-4 border-red-600 rounded-full font-black text-xl shadow-2xl hover:scale-105 active:scale-95 transition-all uppercase"
+          >
+            ⏹️ FINISH SHOW
+          </button>
+        </div>
       )}
     </div>
   );

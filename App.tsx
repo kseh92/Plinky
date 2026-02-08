@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAppFlow } from './components/app/useAppFlow';
 
@@ -31,6 +32,7 @@ import { ExploreScreen } from './components/screens/ExplorePage';
 // --- Player Components ---
 import BlueprintDisplay from './components/player/BlueprintDisplay';
 import CameraScanner from './components/player/CameraScanner';
+import ScanConfirmationScreen from './components/player/ScanConfirmationScreen';
 import InstrumentPlayer from './components/player/InstrumentPlayer_V2';
 import ResultScreen from './components/player/ResultScreen_V2';
 
@@ -47,6 +49,7 @@ const App: React.FC = () => {
     error,
     blueprint,
     hitZones,
+    capturedImage,
     recording,
     sessionStats,
     handlePick,
@@ -54,6 +57,7 @@ const App: React.FC = () => {
     handleShowBlueprint,
     handleQuickStart,
     handleCapture,
+    handleConfirmZones,
     handleFinishedPlaying
   } = flow;
 
@@ -67,7 +71,8 @@ const App: React.FC = () => {
     'provide',
     'result',
     'blueprint',
-    'scan'
+    'scan',
+    'confirmScan'
   ].includes(step);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -133,7 +138,7 @@ const App: React.FC = () => {
 
         <div className="relative z-10 w-full flex flex-col items-center px-4">
           {error && (
-            <div className="bg-red-100 border-4 border-red-200 text-red-600 p-6 rounded-[2rem] mb-12 flex items-center gap-3 animate-bounce shadow-xl font-black uppercase tracking-widest max-w-2xl">
+            <div className="bg-red-100 border-4 border-red-200 text-red-600 p-6 rounded-[2rem] mb-12 flex items-center gap-3 animate-bounce shadow-xl font-black uppercase tracking-widest max-w-2xl mx-auto">
               <span>⚠️ {error}</span>
             </div>
           )}
@@ -312,6 +317,16 @@ const App: React.FC = () => {
                 Go Back
               </button>
             </div>
+          )}
+
+          {step === 'confirmScan' && capturedImage && selectedType && (
+            <ScanConfirmationScreen 
+              image={capturedImage} 
+              hitZones={hitZones} 
+              instrumentType={selectedType}
+              onConfirm={handleConfirmZones} 
+              onRetry={() => setStep('scan')} 
+            />
           )}
 
           {step === 'play' && hitZones.length > 0 && selectedType && (

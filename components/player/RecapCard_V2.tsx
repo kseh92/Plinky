@@ -5,52 +5,11 @@ interface Props {
   recap: RecapData;
 }
 
-const DEFAULT_COVER_URL = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=400';
-
-const getYouTubeVideoId = (url: string | undefined | null) => {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname === 'youtu.be') {
-      const id = parsed.pathname.replace('/', '').trim();
-      return id || null;
-    }
-    const v = parsed.searchParams.get('v');
-    if (v) return v;
-  } catch {
-    return null;
-  }
-  return null;
-};
-
-const getYouTubeThumbUrls = (url: string | undefined | null) => {
-  const id = getYouTubeVideoId(url);
-  if (!id) return null;
-  return [
-    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/default.jpg`
-  ];
-};
-
-const VinylRecord: React.FC<{ imageUrl: string, fallbackUrls?: string[] | null, isSpinning?: boolean }> = ({ imageUrl, fallbackUrls, isSpinning = true }) => {
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.target as HTMLImageElement;
-    const fallbacks = (fallbackUrls || []).filter(Boolean);
-    const idx = Number(img.dataset.fallbackIndex || 0);
-    if (idx < fallbacks.length) {
-      img.dataset.fallbackIndex = String(idx + 1);
-      img.src = fallbacks[idx];
-      return;
-    }
-    img.src = DEFAULT_COVER_URL;
-  };
-
+const VinylRecord: React.FC<{ imageUrl: string, isSpinning?: boolean }> = ({ imageUrl, isSpinning = true }) => {
   return (
-    <div className="relative w-20 h-20 md:w-32 md:h-32 flex-shrink-0 group perspective-1000">
+    <div className="relative w-28 h-28 md:w-44 md:h-44 flex-shrink-0 group perspective-1000">
       {/* Vinyl Disk - Slides out and spins */}
-      <div className={`absolute top-0 left-0 w-20 h-20 md:w-32 md:h-32 bg-[#121212] rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-700 ease-in-out transform group-hover:translate-x-1/2 group-hover:rotate-[360deg] ${isSpinning ? 'animate-spin' : ''}`} 
+      <div className={`absolute top-0 left-0 w-28 h-28 md:w-44 md:h-44 bg-[#121212] rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.5)] transition-all duration-700 ease-in-out transform group-hover:translate-x-1/2 group-hover:rotate-[360deg] ${isSpinning ? 'animate-spin' : ''}`} 
            style={{ animationDuration: '4s' }}>
         
         {/* Vinyl Grooves Texture */}
@@ -63,7 +22,9 @@ const VinylRecord: React.FC<{ imageUrl: string, fallbackUrls?: string[] | null, 
         
         {/* Center Label (Album Art) */}
         <div className="absolute inset-[32%] rounded-full overflow-hidden bg-gray-800 border-2 border-black/80 shadow-inner z-20">
-          <img src={imageUrl} alt="label" className="w-full h-full object-cover" onError={handleImageError} />
+          <img src={imageUrl} alt="label" className="w-full h-full object-cover" onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=400';
+          }} />
           {/* Glossy overlay for the label */}
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent"></div>
         </div>
@@ -77,7 +38,9 @@ const VinylRecord: React.FC<{ imageUrl: string, fallbackUrls?: string[] | null, 
       
       {/* Album Sleeve (Front) */}
       <div className="absolute inset-0 bg-[#282828] rounded-xl shadow-2xl z-40 overflow-hidden border border-white/5 transition-transform duration-500 group-hover:-translate-x-2">
-        <img src={imageUrl} alt="sleeve" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" onError={handleImageError} />
+        <img src={imageUrl} alt="sleeve" className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" onError={(e) => {
+            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=400';
+        }} />
         {/* Sleeve Texture & Depth */}
         <div className="absolute inset-0 bg-gradient-to-tr from-black/40 via-transparent to-white/10"></div>
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-black/20 shadow-[2px_0_10px_rgba(0,0,0,0.3)]"></div>
@@ -115,38 +78,34 @@ const RecapCard: React.FC<Props> = ({ recap }) => {
         
         <div className="flex items-center gap-3 md:gap-6 mb-8 md:mb-12 w-full max-w-lg px-4">
           <div className="flex-1 h-[2px] bg-gradient-to-r from-transparent to-sky-400/40" />
-          <p className="text-xs md:text-xl font-bold text-sky-200 text-center uppercase tracking-widest max-w-[16rem] md:max-w-[26rem] leading-tight break-words">
+          <p className="text-xs md:text-xl font-bold text-sky-200 text-center uppercase tracking-widest whitespace-nowrap">
             Future {recap.artistComparison}
           </p>
           <div className="flex-1 h-[2px] bg-gradient-to-l from-transparent to-sky-400/40" />
         </div>
 
-        <div className="w-full space-y-4 md:space-y-6">
+        <div className="w-full space-y-6 md:space-y-10">
           <div className="flex items-center gap-4 mb-2 md:mb-4">
              <span className="text-[10px] md:text-sm font-black text-sky-400 uppercase tracking-[0.4em] pl-2 whitespace-nowrap">Studio Picks</span>
              <div className="h-[1px] flex-1 bg-gradient-to-r from-sky-400/40 to-transparent" />
           </div>
           
-          <div className="grid grid-cols-1 gap-4 md:gap-6">
-            {recap.recommendedSongs.map((song, idx) => {
-              const youtubeThumbUrls = getYouTubeThumbUrls(song.youtubeMusicUrl) || [];
-              const coverUrl = song.coverImageUrl || youtubeThumbUrls[0] || DEFAULT_COVER_URL;
-              const fallbackUrls = song.coverImageUrl ? youtubeThumbUrls : youtubeThumbUrls.slice(1);
-              return (
+          <div className="grid grid-cols-1 gap-6 md:gap-12">
+            {recap.recommendedSongs.map((song, idx) => (
               <div 
                 key={idx}
-                className="w-full bg-white/5 backdrop-blur-md rounded-[1.5rem] md:rounded-[2rem] p-3 md:p-4 md:pr-6 border border-white/10 grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4 md:gap-6 group hover:bg-white/10 hover:border-sky-400/50 hover:shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition-all duration-500"
+                className="w-full bg-white/5 backdrop-blur-md rounded-[2rem] md:rounded-[2.5rem] p-4 md:p-6 md:pr-10 border border-white/10 flex flex-col md:flex-row items-center justify-between gap-6 md:gap-12 group hover:bg-white/10 hover:border-sky-400/50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.4)] transition-all duration-500"
               >
-                <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10 overflow-hidden w-full">
-                  <VinylRecord imageUrl={coverUrl} fallbackUrls={fallbackUrls} />
+                <div className="flex flex-col md:flex-row items-center gap-6 md:gap-10 overflow-visible w-full">
+                  <VinylRecord imageUrl={song.coverImageUrl} />
                   
                   <div className="flex flex-col justify-center text-center md:text-left overflow-hidden flex-1">
                     <div className="flex items-center justify-center md:justify-start gap-2 md:gap-3 mb-1 md:mb-2">
                        <span className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-sky-500 text-black flex items-center justify-center font-black text-[10px] md:text-xs">0{idx + 1}</span>
                        <span className="text-sky-400 text-[8px] md:text-xs font-black uppercase tracking-widest">Selected Track</span>
                     </div>
-                    <h4 className="text-lg md:text-2xl font-black text-white truncate leading-tight group-hover:text-sky-300 transition-colors mb-0.5 md:mb-1">{song.title}</h4>
-                    <p className="text-gray-400 font-bold text-xs md:text-base truncate mb-2 md:mb-3">{song.artist}</p>
+                    <h4 className="text-xl md:text-3xl font-black text-white truncate leading-tight group-hover:text-sky-300 transition-colors mb-0.5 md:mb-1">{song.title}</h4>
+                    <p className="text-gray-400 font-bold text-sm md:text-lg truncate mb-3 md:mb-4">{song.artist}</p>
                     
                     <div className="flex items-center justify-center md:justify-start gap-2">
                       <div className="h-1 w-8 md:w-12 bg-sky-500 rounded-full"></div>
@@ -156,19 +115,17 @@ const RecapCard: React.FC<Props> = ({ recap }) => {
                   </div>
                 </div>
                 
-                <div className="flex items-center justify-center md:justify-end w-full md:w-auto">
-                  <a
-                    href={song.youtubeMusicUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-12 h-12 md:w-16 md:h-16 flex-shrink-0 bg-red-600 text-white rounded-full transition-all flex items-center justify-center shadow-[0_8px_20px_rgba(220,38,38,0.4)] hover:bg-red-500 hover:scale-110 active:scale-95 group-hover:rotate-[360deg] duration-700"
-                    title="Play on YouTube Music"
-                  >
-                    <span className="text-xl md:text-3xl pl-1">▶</span>
-                  </a>
-                </div>
+                <a
+                  href={song.youtubeMusicUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-14 h-14 md:w-20 md:h-20 flex-shrink-0 bg-red-600 text-white rounded-full transition-all flex items-center justify-center shadow-[0_10px_25px_rgba(220,38,38,0.4)] hover:bg-red-500 hover:scale-110 active:scale-95 group-hover:rotate-[360deg] duration-700"
+                  title="Play on YouTube Music"
+                >
+                  <span className="text-2xl md:text-4xl pl-1">▶</span>
+                </a>
               </div>
-            )})}
+            ))}
           </div>
         </div>
 

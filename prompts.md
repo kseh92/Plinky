@@ -67,3 +67,7 @@
 ## 2026-02-08: Album Jacket & Title Keywords
 - **Prompt**: "If blueprint is made through scan or explore, try to find any object in the photo or prompt to use as a keyword in the album jacket generation. And use the keyword in the song's name generation as well."
 - **Result**: Extracted a keyword from scan images (best-effort object detection) or explore custom names and passed it into album jacket generation and mix title creation.
+
+## 2026-02-08: Piano Doodle Render, Mirroring, and Silhouette-Based Scan Alignment
+- **Prompt**: "Rebuild the piano rendering in a kid-doodle style (black doodle lines, black keys filled, white keys semi-transparent). Fix mirroring issues between piano, canvas, and hands. Keep particle/feedback effects above the instrument. Make scan results follow the scanned silhouette (especially for piano) and improve scan reliability. Adjust camera scan UI so buttons don’t block the view, and keep scan preview mirrored."
+- **Result**: Reworked piano rendering to doodle-style keys with black/white fills and hand-drawn outlines. Corrected mirroring by flipping piano hit zones while keeping video/canvas consistency and made scan preview mirrored. Moved particle effects and finger markers above instrument rendering. Added silhouette extraction + overlay for scan confirmation/play, refined bounds detection to avoid border frames, and re-mapped piano zones to silhouette bounds using scanned key count. Improved scan prompts/thresholds and adjusted CameraScanner layout so buttons sit below the preview.

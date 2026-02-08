@@ -122,7 +122,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         });
 
         setRecapStage('Analyzing mix...');
-        const mixPromise = generateMixSettings(stats.eventLog || [], stats.instrument);
+        const mixPromise = generateMixSettings(stats.eventLog || [], stats.instrument, stats.jacketKeyword);
 
         const recapData = await recapPromise;
         console.info('[Result] Recap data received');

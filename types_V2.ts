@@ -49,6 +49,7 @@ export interface SessionStats {
   uniqueNotesCount: number;
   intensity: number; // notes per second
   eventLog?: PerformanceEvent[];
+  jacketKeyword?: string;
 }
 
 export interface RecommendedTrack {

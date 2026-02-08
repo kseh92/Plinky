@@ -1,6 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
+import { PRESET_ZONES } from "./constants_V2";
 
 const getApiKey = () => {
   return process.env.API_KEY || import.meta.env.GEMINI_API_KEY || "";
@@ -19,6 +20,8 @@ const withTimeout = async <T>(promise: Promise<T>, ms: number, label: string) =>
 };
 
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
+  console.info(`[Blueprint] Starting generation for ${instrument}`);
+  const start = performance.now();
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -58,25 +61,36 @@ export const generateBlueprint = async (instrument: InstrumentType): Promise<Ins
     }
   });
 
+  console.info(`[Blueprint] Generation completed in ${Math.round(performance.now() - start)}ms`);
   return JSON.parse(response.text.trim());
 };
 
 export const scanDrawing = async (instrument: InstrumentType, base64Image: string): Promise<HitZone[]> => {
+  console.info(`[Scan] Starting scan for ${instrument}`);
+  const start = performance.now();
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const pianoPrompt = `Detect ALL individual keys in this piano drawing (both white and black/sharps).
     Identify keys from left to right. Use standard note names (c4, c#4, d4, d#4, etc.).
-    Provide accurate bounding boxes. Return JSON.`;
-  const drumPrompt = `Analyze this hand-drawn drum kit. Identify kick, snare, toms, hi-hat, and crash. Return JSON.`;
+    Provide accurate bounding boxes as percentages (0-100) of the image. Return JSON.`;
+  const drumPrompt = `Analyze this hand-drawn drum kit. Identify kick, snare, toms, hi-hat, and crash.
+    Provide accurate bounding boxes as percentages (0-100) of the image. Return JSON.`;
   const harpPrompt = `Analyze this hand-drawn harp. Identify individual vertical strings (C, D, E, F, G, A, B).
-    Strings should be vertical boxes. Return JSON.`;
+    Strings should be vertical boxes. Provide bounding boxes as percentages (0-100) of the image. Return JSON.`;
   let prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
   if (instrument === 'Harp') prompt = harpPrompt;
+
+  const [meta, data] = base64Image.split(',');
+  const mimeMatch = meta?.match(/data:(.*?);base64/);
+  const mimeType = mimeMatch?.[1] || 'image/jpeg';
+  if (!data) {
+    throw new Error('Invalid image data (missing base64 payload).');
+  }
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: {
       parts: [
-        { inlineData: { data: base64Image.split(',')[1], mimeType: 'image/jpeg' } },
+        { inlineData: { data, mimeType } },
         { text: prompt }
       ]
     },
@@ -100,7 +114,73 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
     }
   });
 
-  return JSON.parse(response.text.trim());
+  const zones = JSON.parse(response.text.trim());
+  if (!Array.isArray(zones) || zones.length === 0) {
+    throw new Error('No hit zones detected.');
+  }
+  console.info(`[Scan] Found ${zones.length} zones in ${Math.round(performance.now() - start)}ms`);
+  if (instrument === 'Harp') {
+    return zones.map((zone: HitZone) => {
+      const raw = String(zone.sound || '').trim().toLowerCase();
+      const base = raw.replace(/[^a-g0-9#]/g, '');
+      const normalized = /^[a-g]$/.test(base) ? `${base}4` : base;
+      const label = normalized.replace(/[^A-G#]/g, '').toUpperCase();
+      return { ...zone, sound: normalized || 'c4', label: label || 'C' };
+    });
+  }
+  if (instrument === 'Drum') {
+    const preset = PRESET_ZONES['Drum'];
+    if (preset?.length) {
+      const shuffled = [...preset];
+      for (let i = shuffled.length - 1; i > 0; i -= 1) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return zones.map((zone: HitZone, idx: number) => {
+        const sound = shuffled[idx % shuffled.length];
+        return { ...zone, sound: sound.sound, label: sound.label };
+      });
+    }
+  }
+  return zones;
+};
+
+export const detectImageKeyword = async (base64Image: string): Promise<string | null> => {
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const [meta, data] = base64Image.split(',');
+  const mimeMatch = meta?.match(/data:(.*?);base64/);
+  const mimeType = mimeMatch?.[1] || 'image/jpeg';
+  if (!data) {
+    return null;
+  }
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3-flash-preview",
+    contents: {
+      parts: [
+        { inlineData: { data, mimeType } },
+        { text: "Look at this drawing and return one simple, kid-friendly object or theme (1-2 words). If none, return an empty string." }
+      ]
+    },
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          keyword: { type: Type.STRING }
+        },
+        required: ["keyword"]
+      }
+    }
+  });
+
+  try {
+    const result = JSON.parse(response.text.trim());
+    const keyword = String(result?.keyword || '').trim();
+    return keyword || null;
+  } catch {
+    return null;
+  }
 };
 
 export const generateSessionRecap = async (stats: SessionStats): Promise<RecapData> => {
@@ -187,9 +267,10 @@ export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData)
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const title = recap.trackTitle || "Doodle Symphony";
   const genre = recap.genre || "bright pop";
+  const keyword = stats.jacketKeyword ? ` Include a playful ${stats.jacketKeyword} motif.` : "";
   const prompt = `Create a vibrant, kid-safe album cover for a ${genre} track titled "${title}". 
   The instrument is ${stats.instrument}. Use playful shapes, bold colors, and a polished studio look. 
-  No dark or scary themes.`;
+  No dark or scary themes.${keyword}`;
 
   console.info("[AlbumJacket] Generating image...");
   console.time("[AlbumJacket] generateImages");
@@ -216,18 +297,23 @@ export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData)
 
 
 
-export const generateMixSettings = async (eventLog: PerformanceEvent[], instrument: InstrumentType): Promise<{
+export const generateMixSettings = async (
+  eventLog: PerformanceEvent[],
+  instrument: InstrumentType,
+  jacketKeyword?: string
+): Promise<{
   genre: string;
   trackTitle: string;
   mix: MixingPreset;
   extendedEventLog: PerformanceEvent[];
 }> => {
   const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const keywordNote = jacketKeyword ? ` Include the theme "${jacketKeyword}" in the title if it fits naturally.` : "";
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Analyze this performance sequence for a ${instrument}: ${JSON.stringify(eventLog.slice(0, 50))}.
     Determine a professional-sounding genre. 
-    Create a COOL, ENERGETIC, and KID-SAFE track title (e.g., 'Neon Skyline', 'Electric Pulse', 'Solar Beat'). 
+    Create a COOL, ENERGETIC, and KID-SAFE track title (e.g., 'Neon Skyline', 'Electric Pulse', 'Solar Beat').${keywordNote}
     CRITICAL: AVOID anything dark, mature, or abstract (No 'Void', 'Shadows', 'Echoes', 'Darkness').
     Suggest audio mixing settings.
     Return JSON.`,

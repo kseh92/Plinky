@@ -1,12 +1,14 @@
 
 import React, { useRef, useState, useEffect } from 'react';
+import { InstrumentBlueprint } from '../../services/types';
 
 interface Props {
   onCapture: (base64: string) => void;
   isScanning: boolean;
+  blueprint?: InstrumentBlueprint | null;
 }
 
-const CameraScanner: React.FC<Props> = ({ onCapture, isScanning }) => {
+const CameraScanner: React.FC<Props> = ({ onCapture, isScanning, blueprint }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -88,17 +90,58 @@ const CameraScanner: React.FC<Props> = ({ onCapture, isScanning }) => {
          </div>
       </div>
 
-      {/* Preprocessing Guidance */}
-      {!isScanning && (
-        <div className="absolute top-12 left-0 right-0 flex justify-center px-8">
-          <div className="bg-white/90 backdrop-blur-md px-6 py-2 rounded-full shadow-lg flex items-center gap-3">
-            <span className="text-xl">💡</span>
-            <span className="text-[10px] md:text-xs font-black text-sky-700 uppercase tracking-widest">Ensure bright light & clear lines</span>
-          </div>
+      {blueprint?.shapes && (
+        <div className="absolute inset-0 pointer-events-none">
+          <svg viewBox="0 0 100 100" className="w-full h-full">
+            {blueprint.shapes.map((shape) => {
+              const interactive = shape.isInteractive !== false;
+              const stroke = interactive ? 'rgba(34,197,94,0.9)' : 'rgba(255,255,255,0.45)';
+              const dash = interactive ? '3,3' : '6,6';
+              return (
+                <g key={shape.id}>
+                  {shape.type === 'circle' ? (
+                    <circle
+                      cx={shape.x}
+                      cy={shape.y}
+                      r={shape.radius || 10}
+                      fill="none"
+                      stroke={stroke}
+                      strokeWidth="0.6"
+                      strokeDasharray={dash}
+                    />
+                  ) : (
+                    <rect
+                      x={shape.x - (shape.width || 10) / 2}
+                      y={shape.y - (shape.height || 10) / 2}
+                      width={shape.width || 10}
+                      height={shape.height || 10}
+                      fill="none"
+                      stroke={stroke}
+                      strokeWidth="0.6"
+                      strokeDasharray={dash}
+                    />
+                  )}
+                  {interactive && (
+                    <text
+                      x={shape.x}
+                      y={shape.y}
+                      fontSize="4"
+                      textAnchor="middle"
+                      alignmentBaseline="middle"
+                      fill="rgba(34,197,94,0.9)"
+                      className="font-bold"
+                    >
+                      {shape.label}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+          </svg>
         </div>
       )}
 
-      <div className="absolute bottom-8 left-0 right-0 flex flex-wrap justify-center gap-4 px-4">
+      <div className="absolute bottom-6 left-0 right-0 flex justify-center">
         <button
           onClick={handleCapture}
           disabled={isScanning}

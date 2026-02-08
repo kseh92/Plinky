@@ -246,6 +246,94 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
     ctx.stroke();
   };
 
+  const drawRoundedRectPath = (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) => {
+    const rr = Math.min(r, w / 2, h / 2);
+    ctx.moveTo(x + rr, y);
+    ctx.lineTo(x + w - rr, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + rr);
+    ctx.lineTo(x + w, y + h - rr);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - rr, y + h);
+    ctx.lineTo(x + rr, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - rr);
+    ctx.lineTo(x, y + rr);
+    ctx.quadraticCurveTo(x, y, x + rr, y);
+  };
+
+  const drawDoodleRect = (
+    ctx: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    r: number,
+    options: { fillStyle: string; outlineColor?: string; outlineWidth?: number; jitter?: number; passes?: number; fillAlpha?: number }
+  ) => {
+    const {
+      fillStyle,
+      outlineColor = '#111',
+      outlineWidth = 4,
+      jitter = 4.5,
+      passes = 3,
+      fillAlpha = 1
+    } = options;
+
+    const oldAlpha = ctx.globalAlpha;
+    const oldLineWidth = ctx.lineWidth;
+    const oldStrokeStyle = ctx.strokeStyle;
+    const oldLineJoin = ctx.lineJoin;
+    const oldLineCap = ctx.lineCap;
+
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    ctx.beginPath();
+    drawRoundedRectPath(ctx, x, y, w, h, r);
+    ctx.fillStyle = fillStyle;
+    ctx.globalAlpha = fillAlpha;
+    ctx.fill();
+    ctx.globalAlpha = oldAlpha;
+
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = outlineWidth;
+    for (let p = 0; p < passes; p++) {
+      ctx.beginPath();
+      const ox = x + (Math.random() - 0.5) * jitter * 0.6;
+      const oy = y + (Math.random() - 0.5) * jitter * 0.6;
+      const ow = w + (Math.random() - 0.5) * jitter * 0.5;
+      const oh = h + (Math.random() - 0.5) * jitter * 0.5;
+
+      drawWobblyPath(ctx, ox + r, oy, ox + ow - r, oy, jitter);
+      drawWobblyPath(ctx, ox + ow, oy + r, ox + ow, oy + oh - r, jitter);
+      drawWobblyPath(ctx, ox + ow - r, oy + oh, ox + r, oy + oh, jitter);
+      drawWobblyPath(ctx, ox, oy + oh - r, ox, oy + r, jitter);
+      ctx.closePath();
+      ctx.stroke();
+    }
+
+    ctx.lineWidth = oldLineWidth;
+    ctx.strokeStyle = oldStrokeStyle;
+    ctx.lineJoin = oldLineJoin;
+    ctx.lineCap = oldLineCap;
+  };
+
+  const drawDoodleStar = (ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) => {
+    const spikes = 5;
+    const step = Math.PI / spikes;
+    ctx.beginPath();
+    for (let i = 0; i < spikes * 2; i++) {
+      const radius = i % 2 === 0 ? r : r * 0.45;
+      const angle = i * step - Math.PI / 2;
+      const jitterX = (Math.random() - 0.5) * 2.5;
+      const jitterY = (Math.random() - 0.5) * 2.5;
+      const x = cx + Math.cos(angle) * radius + jitterX;
+      const y = cy + Math.sin(angle) * radius + jitterY;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.stroke();
+  };
+
   useEffect(() => {
     if (!hasStarted || !landmarker) return;
 
@@ -259,28 +347,34 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
           canvasRef.current.height = videoRef.current.clientHeight;
           ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           
+          const scaledZones = hitZones.map(zone => {
+            const sW = zone.width * zoneScale;
+            const sH = zone.height * zoneScale;
+            const sX_raw = instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
+            const sY = instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
+            const sX = instrumentType === 'Piano' ? (100 - (sX_raw + sW)) : sX_raw;
+            return { ...zone, sX, sY, sW, sH };
+          });
+
           const frameHits = new Set<string>();
+          const tipMarkers: { x: number; y: number; isIndex: boolean }[] = [];
 
           if (results.landmarks) {
             results.landmarks.forEach(landmarks => {
               [8, 4].forEach(tipIndex => {
                 const tip = landmarks[tipIndex];
-                hitZones.forEach(zone => {
-                  const sW = zone.width * zoneScale;
-                  const sH = zone.height * zoneScale;
-                  const sX = instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
-                  const sY = instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
+                scaledZones.forEach(zone => {
+                  const sW = zone.sW;
+                  const sH = zone.sH;
+                  const sX = zone.sX;
+                  const sY = zone.sY;
 
                   if (tip.x >= sX/100 && tip.x <= (sX + sW)/100 && 
                       tip.y >= sY/100 && tip.y <= (sY + sH)/100) {
                     frameHits.add(zone.sound);
                   }
                 });
-                ctx.beginPath();
-                ctx.arc(tip.x * canvasRef.current.width, tip.y * canvasRef.current.height, 15, 0, 2 * Math.PI);
-                ctx.fillStyle = tipIndex === 8 ? 'rgba(239, 68, 68, 0.85)' : 'rgba(59, 130, 246, 0.85)';
-                ctx.fill();
-                ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.stroke();
+                tipMarkers.push({ x: tip.x, y: tip.y, isIndex: tipIndex === 8 });
               });
             });
           }
@@ -293,10 +387,11 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
               uniqueNotesRef.current.add(sound);
               const zone = hitZones.find(z => z.sound === sound);
               if (zone) {
-                const sW = zone.width * zoneScale;
-                const sH = zone.height * zoneScale;
-                const sX = instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
-                const sY = instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
+                const scaled = scaledZones.find(z => z.sound === sound);
+                const sW = scaled ? scaled.sW : zone.width * zoneScale;
+                const sH = scaled ? scaled.sH : zone.height * zoneScale;
+                const sX = scaled ? scaled.sX : instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
+                const sY = scaled ? scaled.sY : instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
                 const px = (sX + sW / 2) / 100 * canvasRef.current.width;
                 const py = (sY + sH / 2) / 100 * canvasRef.current.height;
                 const pColor = instrumentType === 'Piano' ? '#fff' : instrumentType === 'Drum' ? '#f87171' : '#fbbf24';
@@ -313,6 +408,118 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
           });
           activeHitsRef.current = frameHits;
 
+          if (instrumentType === 'Piano' && scaledZones.length > 0) {
+            const minX = Math.min(...scaledZones.map(z => z.sX));
+            const minY = Math.min(...scaledZones.map(z => z.sY));
+            const maxX = Math.max(...scaledZones.map(z => z.sX + z.sW));
+            const maxY = Math.max(...scaledZones.map(z => z.sY + z.sH));
+
+            const frameX = (minX / 100) * canvasRef.current.width;
+            const frameY = (minY / 100) * canvasRef.current.height;
+            const frameW = ((maxX - minX) / 100) * canvasRef.current.width;
+            const frameH = ((maxY - minY) / 100) * canvasRef.current.height;
+
+            const pad = Math.min(frameW, frameH) * 0.06;
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = 4;
+            drawDoodleRect(
+              ctx,
+              frameX - pad,
+              frameY - pad * 1.2,
+              frameW + pad * 2,
+              frameH + pad * 2.2,
+              24,
+              { fillStyle: 'rgba(255, 248, 227, 0.45)', outlineColor: '#111', outlineWidth: 4, jitter: 5, passes: 2 }
+            );
+
+            const standW = frameW * 0.45;
+            const standH = Math.max(18, frameH * 0.18);
+            const standX = frameX + frameW * 0.275;
+            const standY = frameY - standH * 0.6;
+            drawDoodleRect(
+              ctx,
+              standX,
+              standY,
+              standW,
+              standH,
+              14,
+              { fillStyle: 'rgba(255, 255, 255, 0.35)', outlineColor: '#111', outlineWidth: 3, jitter: 4, passes: 2 }
+            );
+
+            ctx.strokeStyle = '#111';
+            ctx.lineWidth = 3;
+            drawDoodleStar(ctx, frameX + frameW * 0.08, frameY - pad * 0.2, 10);
+            drawDoodleStar(ctx, frameX + frameW * 0.92, frameY - pad * 0.1, 8);
+          }
+
+          const pianoZones = instrumentType === 'Piano' ? scaledZones : [];
+          const whiteKeys = instrumentType === 'Piano' ? pianoZones.filter(z => !(z.sound.includes('#') || z.sound.includes('s'))) : [];
+          const blackKeys = instrumentType === 'Piano' ? pianoZones.filter(z => z.sound.includes('#') || z.sound.includes('s')) : [];
+
+          const drawZone = (zone: HitZone & { sX: number; sY: number; sW: number; sH: number }) => {
+            const isActive = frameHits.has(zone.sound);
+
+            const rectX = (zone.sX / 100) * canvasRef.current.width;
+            const rectY = (zone.sY / 100) * canvasRef.current.height;
+            const rectW = (zone.sW / 100) * canvasRef.current.width;
+            const rectH = (zone.sH / 100) * canvasRef.current.height;
+
+            if (instrumentType === 'Piano') {
+              const isSharp = zone.sound.includes('#') || zone.sound.includes('s');
+              const outlineWidth = isActive ? 5 : 4;
+              if (isSharp) {
+                drawDoodleRect(ctx, rectX, rectY, rectW, rectH, 6, {
+                  fillStyle: '#111',
+                  outlineColor: '#111',
+                  outlineWidth,
+                  jitter: 4.5,
+                  passes: 3
+                });
+              } else {
+                drawDoodleRect(ctx, rectX, rectY, rectW, rectH, 10, {
+                  fillStyle: 'rgba(255, 255, 255, 0.55)',
+                  outlineColor: '#111',
+                  outlineWidth,
+                  jitter: 5,
+                  passes: 3
+                });
+              }
+            } else if (instrumentType === 'Drum') {
+              const isCymbal = zone.sound.includes('crash') || zone.sound.includes('hihat');
+              ctx.fillStyle = isCymbal ? (isActive ? 'rgba(252, 211, 77, 0.75)' : 'rgba(251, 191, 36, 0.5)') : (isActive ? 'rgba(248, 113, 113, 0.75)' : 'rgba(239, 68, 68, 0.5)');
+              ctx.strokeStyle = '#fff';
+              ctx.lineWidth = isActive ? 10 : 8;
+              drawRoughEllipse(ctx, rectX, rectY, rectW, rectH);
+            } else if (instrumentType === 'Harp') {
+              ctx.strokeStyle = isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(251, 191, 36, 0.75)';
+              ctx.lineWidth = isActive ? 12 : 6;
+              ctx.beginPath();
+              drawWobblyPath(ctx, rectX + rectW/2, rectY, rectX + rectW/2, rectY + rectH, 2);
+              ctx.stroke();
+            } else {
+              ctx.strokeStyle = isActive ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.45)';
+              ctx.lineWidth = isActive ? 10 : 8;
+              drawRoughRect(ctx, rectX, rectY, rectW, rectH, 15);
+            }
+          };
+
+          if (instrumentType === 'Piano') {
+            whiteKeys.forEach(drawZone);
+            blackKeys.forEach(drawZone);
+          } else {
+            scaledZones.forEach(drawZone);
+          }
+
+          tipMarkers.forEach(marker => {
+            ctx.beginPath();
+            ctx.arc(marker.x * canvasRef.current.width, marker.y * canvasRef.current.height, 15, 0, 2 * Math.PI);
+            ctx.fillStyle = marker.isIndex ? 'rgba(239, 68, 68, 0.85)' : 'rgba(59, 130, 246, 0.85)';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+          });
+
           particlesRef.current = particlesRef.current.filter(p => {
             p.x += p.vx; p.y += p.vy; p.vy += 0.8; p.vx *= 0.98; p.rotation += p.rotationSpeed; p.life -= 0.04;
             if (p.life > 0) {
@@ -327,51 +534,6 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
             }
             return false;
           });
-
-          hitZones.forEach(zone => {
-            const isActive = frameHits.has(zone.sound);
-            
-            const sW_raw = zone.width * zoneScale;
-            const sH_raw = zone.height * zoneScale;
-            const sX_raw = instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
-            const sY_raw = instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
-
-            const rectX = (sX_raw / 100) * canvasRef.current.width;
-            const rectY = (sY_raw / 100) * canvasRef.current.height;
-            const rectW = (sW_raw / 100) * canvasRef.current.width;
-            const rectH = (sH_raw / 100) * canvasRef.current.height;
-            
-            ctx.lineWidth = isActive ? 10 : 8;
-
-            if (instrumentType === 'Piano') {
-              const isSharp = zone.sound.includes('#') || zone.sound.includes('s');
-              ctx.strokeStyle = '#000'; // Black marker stroke
-              
-              if (isSharp) {
-                 // Black keys: solid opaque black as requested
-                 ctx.fillStyle = isActive ? '#4a4a4a' : '#000'; 
-                 drawRoughRect(ctx, rectX, rectY, rectW, rectH, 6, 2.0, true); 
-              } else {
-                 // White keys: semi-transparent white (rgba 0.4) as requested
-                 ctx.fillStyle = isActive ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
-                 drawRoughRect(ctx, rectX, rectY, rectW, rectH, 10, 3.5, false); 
-              }
-            } else if (instrumentType === 'Drum') {
-              const isCymbal = zone.sound.includes('crash') || zone.sound.includes('hihat');
-              ctx.fillStyle = isCymbal ? (isActive ? 'rgba(252, 211, 77, 0.75)' : 'rgba(251, 191, 36, 0.5)') : (isActive ? 'rgba(248, 113, 113, 0.75)' : 'rgba(239, 68, 68, 0.5)');
-              ctx.strokeStyle = '#fff';
-              drawRoughEllipse(ctx, rectX, rectY, rectW, rectH);
-            } else if (instrumentType === 'Harp') {
-              ctx.strokeStyle = isActive ? 'rgba(255, 255, 255, 0.95)' : 'rgba(251, 191, 36, 0.75)';
-              ctx.lineWidth = isActive ? 12 : 6;
-              ctx.beginPath();
-              drawWobblyPath(ctx, rectX + rectW/2, rectY, rectX + rectW/2, rectY + rectH, 2);
-              ctx.stroke();
-            } else {
-              ctx.strokeStyle = isActive ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.45)';
-              drawRoughRect(ctx, rectX, rectY, rectW, rectH, 15);
-            }
-          });
         }
       }
       animationId = requestAnimationFrame(render);
@@ -383,8 +545,17 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
   return (
     <div className="fixed inset-0 bg-black z-50 overflow-hidden">
       <div className="absolute inset-0 z-10 overflow-hidden">
-        <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100" autoPlay muted playsInline />
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10 pointer-events-none" />
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover -scale-x-100"
+          autoPlay
+          muted
+          playsInline
+        />
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10 pointer-events-none"
+        />
       </div>
 
       {hasStarted && (

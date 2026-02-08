@@ -120,7 +120,7 @@ const RecapCard: React.FC<Props> = ({ recap }) => {
           </p>
           <div className="flex-1 h-[2px] bg-gradient-to-l from-transparent to-sky-400/40" />
         </div>
-
+        
         <div className="w-full space-y-4 md:space-y-6">
           <div className="flex items-center gap-4 mb-2 md:mb-4">
              <span className="text-[10px] md:text-sm font-black text-sky-400 uppercase tracking-[0.4em] pl-2 whitespace-nowrap">Studio Picks</span>

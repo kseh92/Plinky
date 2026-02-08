@@ -107,7 +107,7 @@ class ToneService {
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.02, decay: 0.1, sustain: 0.3, release: 1 }
       }).connect(output);
-      this.piano.maxPolyphony = 32;
+      this.piano.maxPolyphony = 64;
 
       // Harp: plucky + airy chain
       this.harpFilter = new Tone.Filter({ type: 'highpass', frequency: 140, rolloff: -12 });
@@ -124,7 +124,7 @@ class ToneService {
         modulationEnvelope: { attack: 0.002, decay: 0.15, sustain: 0, release: 0.2 }
       });
       this.harp.chain(this.harpFilter, this.harpChorus, this.harpReverb, this.harpGain, output);
-      this.harp.maxPolyphony = 48;
+      this.harp.maxPolyphony = 96;
 
       this.bassSynth = new Tone.MonoSynth({
         oscillator: { type: 'fmsquare' },
@@ -143,7 +143,7 @@ class ToneService {
         oscillator: { type: 'sine' },
         envelope: { attack: 0.5, decay: 0.5, sustain: 1, release: 2 }
       }).connect(new Tone.Gain(0.3).connect(output));
-      this.padSynth.maxPolyphony = 16;
+      this.padSynth.maxPolyphony = 32;
 
       this.recorder = new Tone.Recorder();
       this.masterOutput.connect(this.recorder);
@@ -302,6 +302,77 @@ class ToneService {
         }
       } else {
         this.piano?.triggerAttackRelease(this.parseNote(id), '2n', triggerTime);
+      }
+    } catch (e) {
+      console.warn(`Playback Error [${fullId}]:`, e);
+    }
+  }
+
+  startNote(soundId: string | undefined | null, currentInstrument?: InstrumentType) {
+    if (!this.initialized || !soundId) return;
+    const triggerTime = Tone.now();
+    const fullId = soundId.toLowerCase().trim();
+    const parts = fullId.split(':');
+    const prefix = parts.length > 1 ? parts[0] : null;
+    const id = parts.length > 1 ? parts[1] : parts[0];
+
+    if (this._recordingStart > 0) {
+      this.eventLog.push({ timestamp: performance.now() - this._recordingStart, sound: fullId });
+    }
+
+    try {
+      if (prefix === 'bass' || id.includes('bass')) {
+        this.bassSynth?.triggerAttack(this.parseNote(id), triggerTime);
+      } else if (prefix === 'pad') {
+        this.padSynth?.triggerAttack(this.parseNote(id), triggerTime);
+      } else if (prefix === 'harp' || currentInstrument === 'Harp' || id.startsWith('harp_')) {
+        const harpNote = this.parseNote(id.replace('harp_', ''));
+        this.harp?.triggerAttack(harpNote, triggerTime, 0.85);
+      } else if (
+        prefix === 'drum' ||
+        id.includes('kick') ||
+        id.includes('snare') ||
+        id.includes('hihat') ||
+        id.includes('crash') ||
+        id.includes('tom')
+      ) {
+        // Drums are one-shot; keep existing behavior.
+        this.play(soundId, undefined, currentInstrument);
+      } else {
+        this.piano?.triggerAttack(this.parseNote(id), triggerTime);
+      }
+    } catch (e) {
+      console.warn(`Playback Error [${fullId}]:`, e);
+    }
+  }
+
+  stopNote(soundId: string | undefined | null, currentInstrument?: InstrumentType) {
+    if (!this.initialized || !soundId) return;
+    const triggerTime = Tone.now();
+    const fullId = soundId.toLowerCase().trim();
+    const parts = fullId.split(':');
+    const prefix = parts.length > 1 ? parts[0] : null;
+    const id = parts.length > 1 ? parts[1] : parts[0];
+
+    try {
+      if (prefix === 'bass' || id.includes('bass')) {
+        this.bassSynth?.triggerRelease(triggerTime);
+      } else if (prefix === 'pad') {
+        this.padSynth?.triggerRelease(this.parseNote(id), triggerTime);
+      } else if (prefix === 'harp' || currentInstrument === 'Harp' || id.startsWith('harp_')) {
+        const harpNote = this.parseNote(id.replace('harp_', ''));
+        this.harp?.triggerRelease(harpNote, triggerTime);
+      } else if (
+        prefix === 'drum' ||
+        id.includes('kick') ||
+        id.includes('snare') ||
+        id.includes('hihat') ||
+        id.includes('crash') ||
+        id.includes('tom')
+      ) {
+        // Drums are one-shot; nothing to release.
+      } else {
+        this.piano?.triggerRelease(this.parseNote(id), triggerTime);
       }
     } catch (e) {
       console.warn(`Playback Error [${fullId}]:`, e);

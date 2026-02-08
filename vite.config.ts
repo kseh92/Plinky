@@ -1,7 +1,5 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-// Import process to ensure TypeScript recognizes Node.js process methods and properties
-import process from 'process';
 
 export default defineConfig(({ mode }) => {
   // Load environment variables from the current directory.
@@ -16,5 +14,9 @@ export default defineConfig(({ mode }) => {
       'process.env.API_KEY': JSON.stringify(process.env.API_KEY || env.GEMINI_API_KEY || ""),
     },
     envPrefix: ['VITE_', 'GEMINI_'],
+    server: {
+      host: '0.0.0.0',
+      // allowedHosts: ["angelina-oversolemn-andrew.ngrok-free.dev"]
+    }
   };
 });

@@ -1,4 +1,3 @@
-
 export type WeightedPrompt = { text: string; weight?: number };
 
 export interface LyriaStartPayload {
@@ -13,16 +12,10 @@ export interface LyriaStartPayload {
   };
 }
 
-export const defaultLyriaWsUrl = (model: string = 'lyria-realtime-exp') => {
-  const apiKey = process.env.API_KEY || "";
+export const defaultLyriaWsUrl = () => {
+  const apiKey = process.env.API_KEY || import.meta.env.GEMINI_API_KEY || "";
   if (!apiKey) return '';
-  
-  // Strip 'models/' prefix if it exists to ensure a clean identifier
-  const modelId = model.replace(/^models\//, '');
-  
-  // Format consistent with Google AI Bidi endpoints:
-  // wss://{host}/ws/google.ai.generativelanguage.{version}.models/{modelId}:{method}?key={apiKey}
-  return `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.models/${modelId}:bidiGenerateMusic?key=${apiKey}`;
+  return `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateMusic?key=${apiKey}`;
 };
 
 export const base64ToUint8Array = (base64: string) => {

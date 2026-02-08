@@ -1,6 +1,6 @@
-
+import { GoogleGenAI } from '@google/genai';
 import { PerformanceEvent, SessionStats, RecapData } from '../types_V2';
-import { base64ToUint8Array, defaultLyriaWsUrl } from './lyriaStudio';
+import { base64ToUint8Array } from './lyriaStudio';
 
 export interface ComposerConfig {
   apiKey: string;
@@ -36,85 +36,52 @@ export const buildWeightedPrompts = (recap: RecapData | null, stats: SessionStat
   ];
 };
 
-/**
- * Lyria RealTime requires the BidiGenerateMusic endpoint.
- * We combine weighted_prompts and music_generation_config into one setup message to prevent 'Invalid Argument' errors.
- */
 export async function startLyriaComposer(
   stats: SessionStats,
   recap: RecapData,
   eventLog: PerformanceEvent[],
   config: ComposerConfig
 ) {
-  const modelName = config.model || 'lyria-realtime-exp';
-  const wsUrl = defaultLyriaWsUrl(modelName);
-  
-  if (!wsUrl) {
-    throw new Error("Lyria WebSocket URL could not be determined. Check API Key.");
-  }
+  const ai = new GoogleGenAI({ apiKey: config.apiKey, apiVersion: 'v1alpha' });
+  const model = config.model || 'models/lyria-realtime-exp';
 
   const bpm = estimateBpm(eventLog);
   const notesPerSecond = stats.noteCount / Math.max(1, stats.durationSeconds || 1);
   const density = Math.min(Math.max(notesPerSecond / 6, 0.2), 0.9);
   const brightness = stats.instrument === 'Harp' ? 0.65 : 0.55;
 
-  return new Promise((resolve, reject) => {
-    const socket = new WebSocket(wsUrl);
-    
-    const client = {
-      stop: () => {
-        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-          socket.close();
-        }
-      }
-    };
-
-    socket.onopen = () => {
-      console.info('[Composer] Lyria WebSocket connected to', modelName);
-      
-      // Send single setup message with both prompts and generation config
-      const setupMessage = {
-        music_generation_config: {
-          weighted_prompts: buildWeightedPrompts(recap, stats),
-          bpm,
-          density,
-          brightness,
-          guidance: 4.5,
-          audio_format: 'AUDIO_PCM_16', // Standard enum naming
-          sample_rate_hz: 48000
-        }
-      };
-
-      socket.send(JSON.stringify(setupMessage));
-      resolve(client);
-    };
-
-    socket.onmessage = (event) => {
-      try {
-        const message = JSON.parse(event.data);
+  const live = await ai.live.music.connect({
+    model,
+    callbacks: {
+      onmessage: (message: any) => {
         config.onMessage?.(message);
-
-        // Standard Bidi Audio Output fields
-        const base64Data = message.server_content?.model_turn?.parts?.[0]?.inline_data?.data 
-                         || message.audio_chunks?.[0]?.data;
-
-        if (base64Data) {
-          config.onChunk(base64ToUint8Array(base64Data));
-        }
-      } catch (err) {
-        console.warn('[Composer] Failed to parse message', err);
+        const chunks = message?.serverContent?.audioChunks || [];
+        chunks.forEach((chunk: any) => {
+          const payload = chunk?.data ?? chunk?.bytes;
+          if (typeof payload === 'string') {
+            config.onChunk(base64ToUint8Array(payload));
+          }
+        });
+      },
+      onerror: (err: any) => {
+        config.onError?.(err);
+      },
+      onclose: () => {
+        config.onClose?.();
       }
-    };
-
-    socket.onerror = (err) => {
-      console.error('[Composer] WebSocket Error', err);
-      config.onError?.(err);
-      reject(err);
-    };
-
-    socket.onclose = () => {
-      console.info('[Composer] Lyria WebSocket closed');
-      config.onClose?.();
-    };
+    }
   });
+
+  await live.setWeightedPrompts({ weightedPrompts: buildWeightedPrompts(recap, stats) });
+  await live.setMusicGenerationConfig({
+    musicGenerationConfig: {
+      bpm,
+      density,
+      brightness,
+      guidance: 4.5
+    }
+  });
+
+  live.play();
+  return live;
 }

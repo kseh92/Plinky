@@ -1,4 +1,3 @@
-
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { SessionStats, RecapData, PerformanceEvent } from '../../services/types';
 import { generateSessionRecap, generateMixSettings, generateAlbumJacket } from '../../services/geminiService';
@@ -7,8 +6,6 @@ import { concatUint8Arrays, encodeWavFromPcm16 } from '../../services/lyriaStudi
 import { filterPlayableTracks } from '../../services/youtubeAvailability';
 import { startLyriaComposer } from '../../services/aiComposer';
 import RecapCard from './RecapCard_V2';
-
-// Fix: Removed conflicting aistudio declaration as it is already defined in the global environment.
 
 interface Props {
   recording: Blob | null;
@@ -57,6 +54,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [recapStage, setRecapStage] = useState<string>('');
   const [recapError, setRecapError] = useState<string | null>(null);
   const [recapErrorDetails, setRecapErrorDetails] = useState<string | null>(null);
+  const hasRecapRef = useRef(false);
 
   // Studio Mix states
   const [isComposing, setIsComposing] = useState(false);
@@ -66,6 +64,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const composerChunksRef = useRef<Uint8Array[]>([]);
   const composerLiveRef = useRef<any>(null);
   const composerTimerRef = useRef<number | null>(null);
+  const composerStoppingRef = useRef(false);
 
   const audioUrl = useMemo(() => {
     if (!recording) return null;
@@ -103,8 +102,10 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   }, [audioUrl, stats]);
 
   useEffect(() => {
+    if (hasRecapRef.current) return;
     const fetchAIAssistance = async () => {
       if (!stats || isMeasuring || accurateDuration === null) return;
+      hasRecapRef.current = true;
       setIsRecapLoading(true);
       setIsMixing(true);
       setRecapStage('Generating recap...');
@@ -246,7 +247,11 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     const live = composerLiveRef.current;
     if (live && typeof live.stop === 'function') {
       try {
+        composerStoppingRef.current = true;
         live.stop();
+        if (typeof live.close === 'function') {
+          live.close();
+        }
       } catch (err) {
         console.warn('[Composer][SDK] Stop failed', err);
       }
@@ -259,30 +264,25 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     window.setTimeout(finalizeComposer, 150);
   };
 
-  const startAIComposer = async () => {
+  const startAIComposer = () => {
     if (!stats || !recap || isComposing) return;
-
-    // Check for selected API key as per AI Studio guidelines for high-end features
-    if ((window as any).aistudio && !(await (window as any).aistudio.hasSelectedApiKey())) {
-      await (window as any).aistudio.openSelectKey();
-      // Assume success and proceed to connection
-    }
 
     setComposerError(null);
     setStudioMixBlob(null);
     setIsComposing(true);
     setComposerProgress(0);
     composerChunksRef.current = [];
+    composerStoppingRef.current = false;
 
-    const durationSec = clamp(Math.round(accurateDuration || stats.durationSeconds || 30), 20, 60);
-    const apiKey = process.env.API_KEY;
+    const durationSec = clamp(Math.round(accurateDuration || stats.durationSeconds || 30), 30, 60);
+    const apiKey = process.env.API_KEY || import.meta.env.GEMINI_API_KEY || "";
     if (!apiKey) {
-      setComposerError('API Key not found. Please select one.');
+      setComposerError('Missing GEMINI_API_KEY. Set it to use the AI composer.');
       setIsComposing(false);
       return;
     }
 
-    console.info('[Composer] Connecting via WebSocket');
+    console.info('[Composer] Connecting via SDK live client');
     (async () => {
       try {
         const live = await startLyriaComposer(stats, recap, stats.eventLog || [], {
@@ -293,37 +293,29 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
           onMessage: (message) => {
             console.debug('[Composer][SDK] Message', message);
           },
-          onError: async (err: any) => {
+          onError: (err) => {
+            if (composerStoppingRef.current) return;
             console.error('[Composer][SDK] Error', err);
-            const errMsg = err?.message || String(err);
-            
-            // Handle "Requested entity was not found" error as per guidelines
-            if (errMsg.includes("Requested entity was not found.") && (window as any).aistudio) {
-              setComposerError('Your API Key does not have access to Lyria. Please select a valid paid project key.');
-              await (window as any).aistudio.openSelectKey();
-            } else {
-              setComposerError('Composer connection failed.');
-            }
+            setComposerError('Composer connection failed.');
             stopAIComposer();
           },
           onClose: () => {
+            if (composerStoppingRef.current) return;
             console.warn('[Composer][SDK] Closed');
           }
         });
 
         composerLiveRef.current = live;
         console.info('[Composer][SDK] Connected and playing');
-      } catch (err: any) {
+      } catch (err) {
         console.error('[Composer][SDK] Init failed', err);
-        const errMsg = err?.message || String(err);
-        if (errMsg.includes("Requested entity was not found.") && (window as any).aistudio) {
-           await (window as any).aistudio.openSelectKey();
-        }
         setComposerError('Composer connection failed.');
         stopAIComposer();
         return;
       }
     })();
+
+    // Raw WebSocket path is intentionally disabled; SDK is the source of truth.
 
     const startTime = Date.now();
     composerTimerRef.current = window.setInterval(() => {
@@ -420,7 +412,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
                     disabled={!isComposerReady}
                     className={`group relative w-full py-8 md:py-12 text-white text-2xl md:text-5xl font-black rounded-full shadow-[0_10px_0_#020A20] md:shadow-[0_16px_0_#020A20] transition-all duration-150 transform flex items-center justify-center gap-6 ${
                       isComposerReady
-                        ? 'bg-[#1e3a8a] hover:bg-[#2a4db3] hover:translate-y-[4px] md:hover:translate-y-[8px] active:shadow-none translate-y-[10px] md:active:translate-y-[16px] hover:scale-102'
+                        ? 'bg-[#1e3a8a] hover:bg-[#2a4db3] hover:translate-y-[4px] md:hover:translate-y-[8px] active:shadow-none active:translate-y-[10px] md:active:translate-y-[16px] hover:scale-102'
                         : 'bg-[#1e3a8a]/40 cursor-not-allowed'
                     }`}
                   >
@@ -444,7 +436,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
                 )}
 
                 {composerError && (
-                  <div className="w-full text-center bg-white/40 rounded-[2rem] border-4 border-red-200 text-red-600 font-black uppercase tracking-widest py-4 px-4">
+                  <div className="w-full text-center bg-white/40 rounded-[2rem] border-4 border-red-200 text-red-600 font-black uppercase tracking-widest py-4">
                     {composerError}
                   </div>
                 )}
@@ -452,7 +444,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
                 {studioMixBlob && (
                   <button
                     onClick={handleShare}
-                    className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
+                    className="w-full py-6 md:py-8 bg-emerald-500 hover:bg-emerald-600 text-white text-xl md:text-3xl font-black rounded-full shadow-[0_8px_0_#065f46] md:shadow-[0_12px_0_#065f46] hover:translate-y-[4px] active:shadow-none active:translate-y-[8px] md:active:translate-y-[12px] transition-all duration-150 flex items-center justify-center gap-4"
                   >
                     <span className="text-2xl md:text-4xl">🌍</span> SHARE WITH THE WORLD
                   </button>

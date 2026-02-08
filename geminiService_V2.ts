@@ -2,9 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
 
-// Fix: Strictly following the guideline to use process.env.API_KEY exclusively.
 const getApiKey = () => {
-  return process.env.API_KEY;
+  return process.env.API_KEY || import.meta.env.GEMINI_API_KEY || "";
 };
 
 const withTimeout = async <T>(promise: Promise<T>, ms: number, label: string) => {
@@ -20,7 +19,7 @@ const withTimeout = async <T>(promise: Promise<T>, ms: number, label: string) =>
 };
 
 export const generateBlueprint = async (instrument: InstrumentType): Promise<InstrumentBlueprint> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Create a "blueprint" for a hand-drawn ${instrument}. 
@@ -63,47 +62,25 @@ export const generateBlueprint = async (instrument: InstrumentType): Promise<Ins
 };
 
 export const scanDrawing = async (instrument: InstrumentType, base64Image: string): Promise<HitZone[]> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  const systemInstruction = `You are a precision-focused computer vision model. Your task is to detect hand-drawn musical instruments.
-    CRITICAL COORDINATE RULES:
-    1. x and y MUST be the TOP-LEFT corner of the bounding box (not the center).
-    2. Values are 0-100 relative to the image width and height.
-    3. The bounding box must ENCLOSE the drawn pencil/pen lines perfectly. Do not leave gaps.
-    4. Ignore all background noise (hands, furniture, shadows). Only detect the drawn instrument parts.
-    5. Ensure the box strictly follows the orientation and tilt of the drawing.
-    6. Return a JSON array.`;
-
-  const pianoPrompt = `Detect each INDIVIDUAL piano key. 
-    1. Distinguish white keys from black keys.
-    2. White keys (longer): c4, d4, e4, f4, g4, a4, b4, c5.
-    3. Black keys (shorter, usually drawn between white keys): c#4, d#4, f#4, g#4, a#4.
-    Ensure the boxes are long and narrow, matching the drawn key outlines.`;
-    
-  const drumPrompt = `Detect parts of this drum kit: kick, snare, hihat, crash, tom_hi, tom_mid, tom_low.
-    Draw circles or ellipses that cover the drawn drum heads.`;
-    
-  const harpPrompt = `Detect strings of this harp. Each string is a vertical line. 
-    Identify them from left to right as c4, d4, etc.
-    Boxes should be very narrow but cover the full height of the drawn string.`;
-    
-  const genericPrompt = `Identify the interactive components of this: ${instrument}. 
-    Map drawing parts to logical sound names using top-left x,y coordinates.`;
-
-  let userPrompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
-  if (instrument === 'Harp') userPrompt = harpPrompt;
-  if (!['Piano', 'Drum', 'Harp'].includes(instrument)) userPrompt = genericPrompt;
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const pianoPrompt = `Detect ALL individual keys in this piano drawing (both white and black/sharps).
+    Identify keys from left to right. Use standard note names (c4, c#4, d4, d#4, etc.).
+    Provide accurate bounding boxes. Return JSON.`;
+  const drumPrompt = `Analyze this hand-drawn drum kit. Identify kick, snare, toms, hi-hat, and crash. Return JSON.`;
+  const harpPrompt = `Analyze this hand-drawn harp. Identify individual vertical strings (C, D, E, F, G, A, B).
+    Strings should be vertical boxes. Return JSON.`;
+  let prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
+  if (instrument === 'Harp') prompt = harpPrompt;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: {
       parts: [
         { inlineData: { data: base64Image.split(',')[1], mimeType: 'image/jpeg' } },
-        { text: userPrompt }
+        { text: prompt }
       ]
     },
     config: {
-      systemInstruction,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.ARRAY,
@@ -127,13 +104,13 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
 };
 
 export const generateSessionRecap = async (stats: SessionStats): Promise<RecapData> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const intensityLabel = stats.intensity > 4 ? "Extremely High (Shredding/Rapid)" : 
                         stats.intensity > 1.5 ? "Moderate (Groovy/Rhythmic)" : "Low (Calm/Minimalist)";
   const varietyLabel = stats.uniqueNotesCount > 10 ? "Very High (Experimental/Orchestral)" :
                       stats.uniqueNotesCount > 4 ? "Good (Balanced)" : "Focused (Minimal)";
 
-  const prompt = `Act as an encouraging music critic for a kid playing a paper ${stats.instrument}.
+  const prompt = `Act as an encouraging, playful music buddy for a 6-year-old playing a paper ${stats.instrument}.
   PERFORMANCE DATA:
   - Duration: ${stats.durationSeconds}s
   - Intensity: ${intensityLabel}
@@ -141,8 +118,12 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
   
   TASK:
   1. Find 8 REAL, popular songs on YouTube Music that match this vibe.
-  2. For each song, get the EXACT YouTube Music URL and the REAL high-quality album art cover URL.
-  3. Return a valid JSON object with: criticQuote, artistComparison, performanceStyle, and recommendedSongs.`;
+  2. Keep recommendations diverse but still on-vibe: at least 6 distinct artists, no artist repeated more than once.
+  3. Avoid always choosing the same blockbuster tracks.
+  4. For each song, get the EXACT YouTube Music URL and the REAL high-quality album art cover URL.
+  5. Return a valid JSON object with: criticQuote, artistComparison, performanceStyle, and recommendedSongs.
+  6. Make criticQuote one to two short, cheerful sentence (max 20 words), using simple kid-friendly language and exactly one emoji.
+  7. Make artistComparison a short artist name only (1-3 words). Artist should not be controversial one. Include that artist as recommendedSongs[0].`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -175,17 +156,43 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
   });
 
   const recap = JSON.parse(response.text.trim());
+  const normalizeArtist = (value: string | undefined) =>
+    (value || '')
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  if (recap?.recommendedSongs?.length) {
+    const targetArtist = normalizeArtist(recap.artistComparison);
+    if (targetArtist) {
+      const idx = recap.recommendedSongs.findIndex((song: any) => {
+        const artist = normalizeArtist(song?.artist);
+        return artist && (artist.includes(targetArtist) || targetArtist.includes(artist));
+      });
+      if (idx > 0) {
+        const [match] = recap.recommendedSongs.splice(idx, 1);
+        recap.recommendedSongs.unshift(match);
+      } else if (idx < 0) {
+        recap.artistComparison = recap.recommendedSongs[0]?.artist || recap.artistComparison;
+      }
+    }
+  }
+
   return recap;
 };
 
 export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData): Promise<string> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const title = recap.trackTitle || "Doodle Symphony";
   const genre = recap.genre || "bright pop";
   const prompt = `Create a vibrant, kid-safe album cover for a ${genre} track titled "${title}". 
   The instrument is ${stats.instrument}. Use playful shapes, bold colors, and a polished studio look. 
   No dark or scary themes.`;
 
+  console.info("[AlbumJacket] Generating image...");
+  console.time("[AlbumJacket] generateImages");
   const response = await withTimeout(
     ai.models.generateImages({
       model: "imagen-4.0-generate-001",
@@ -197,8 +204,9 @@ export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData)
     20000,
     "Album jacket generation"
   );
+  console.timeEnd("[AlbumJacket] generateImages");
 
-  const bytes = (response as any)?.generatedImages?.[0]?.image?.imageBytes;
+  const bytes = response?.generatedImages?.[0]?.image?.imageBytes;
   if (!bytes) {
     throw new Error("Album jacket image bytes missing.");
   }
@@ -206,18 +214,23 @@ export const generateAlbumJacket = async (stats: SessionStats, recap: RecapData)
   return `data:image/png;base64,${bytes}`;
 };
 
+
+
 export const generateMixSettings = async (eventLog: PerformanceEvent[], instrument: InstrumentType): Promise<{
   genre: string;
   trackTitle: string;
   mix: MixingPreset;
   extendedEventLog: PerformanceEvent[];
 }> => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
     contents: `Analyze this performance sequence for a ${instrument}: ${JSON.stringify(eventLog.slice(0, 50))}.
     Determine a professional-sounding genre. 
-    Create a COOL, ENERGETIC, and KID-SAFE track title (e.g., 'Neon Skyline', 'Electric Pulse', 'Solar Beat'). Suggest audio mixing settings. Return JSON.`,
+    Create a COOL, ENERGETIC, and KID-SAFE track title (e.g., 'Neon Skyline', 'Electric Pulse', 'Solar Beat'). 
+    CRITICAL: AVOID anything dark, mature, or abstract (No 'Void', 'Shadows', 'Echoes', 'Darkness').
+    Suggest audio mixing settings.
+    Return JSON.`,
     config: {
       responseMimeType: "application/json",
       responseSchema: {

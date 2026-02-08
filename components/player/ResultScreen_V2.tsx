@@ -63,6 +63,7 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const composerChunksRef = useRef<Uint8Array[]>([]);
   const composerLiveRef = useRef<any>(null);
   const composerTimerRef = useRef<number | null>(null);
+  const composerStoppingRef = useRef(false);
 
   const audioUrl = useMemo(() => {
     if (!recording) return null;
@@ -243,7 +244,11 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     const live = composerLiveRef.current;
     if (live && typeof live.stop === 'function') {
       try {
+        composerStoppingRef.current = true;
         live.stop();
+        if (typeof live.close === 'function') {
+          live.close();
+        }
       } catch (err) {
         console.warn('[Composer][SDK] Stop failed', err);
       }
@@ -264,11 +269,12 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     setIsComposing(true);
     setComposerProgress(0);
     composerChunksRef.current = [];
+    composerStoppingRef.current = false;
 
-    const durationSec = clamp(Math.round(accurateDuration || stats.durationSeconds || 30), 20, 60);
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const durationSec = clamp(Math.round(accurateDuration || stats.durationSeconds || 30), 30, 60);
+    const apiKey = process.env.API_KEY || import.meta.env.GEMINI_API_KEY || "";
     if (!apiKey) {
-      setComposerError('Missing VITE_GEMINI_API_KEY. Set it to use the AI composer.');
+      setComposerError('Missing GEMINI_API_KEY. Set it to use the AI composer.');
       setIsComposing(false);
       return;
     }
@@ -285,11 +291,13 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
             console.debug('[Composer][SDK] Message', message);
           },
           onError: (err) => {
+            if (composerStoppingRef.current) return;
             console.error('[Composer][SDK] Error', err);
             setComposerError('Composer connection failed.');
             stopAIComposer();
           },
           onClose: () => {
+            if (composerStoppingRef.current) return;
             console.warn('[Composer][SDK] Closed');
           }
         });

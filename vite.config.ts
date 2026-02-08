@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
     define: {
       // Map the GEMINI_API_KEY found in environment files to process.env.API_KEY.
       // This ensures that new GoogleGenAI({ apiKey: process.env.API_KEY }) works in the browser.
-      'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY || env.VITE_GEMINI_API_KEY || ""),
+      'process.env.API_KEY': JSON.stringify(process.env.API_KEY || env.GEMINI_API_KEY || ""),
     },
     envPrefix: ['VITE_', 'GEMINI_'],
   };

@@ -36,6 +36,10 @@ const buildYouTubeMusicSearchUrl = (title: string, artist: string) => {
   return `https://music.youtube.com/search?q=${encodeURIComponent(query)}`;
 };
 
+const buildYouTubeMusicWatchUrl = (videoId: string) => {
+  return `https://music.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+};
+
 type OEmbedResult = { ok: boolean; title?: string; author?: string };
 
 const checkOEmbed = async (videoId: string): Promise<OEmbedResult> => {
@@ -58,21 +62,31 @@ const checkOEmbed = async (videoId: string): Promise<OEmbedResult> => {
 export async function filterPlayableTracks(tracks: RecommendedTrack[]): Promise<RecommendedTrack[]> {
   if (!tracks.length) return tracks;
 
+  const pinned = tracks[0] ? [tracks[0]] : [];
+  const rest = tracks.slice(1);
+
   const results = await Promise.all(
-    tracks.map(async (track) => {
+    rest.map(async (track) => {
       const id = parseVideoId(track.youtubeMusicUrl);
       const oembed = await checkOEmbed(id);
       const matches = oembed.ok && !!oembed.title && !!oembed.author
         ? isLikelyMatch(track.title, track.artist, oembed.title, oembed.author)
         : false;
-      const safeUrl = matches ? track.youtubeMusicUrl : buildYouTubeMusicSearchUrl(track.title, track.artist);
+      const safeUrl = matches && id
+        ? buildYouTubeMusicWatchUrl(id)
+        : buildYouTubeMusicSearchUrl(track.title, track.artist);
       return { track: { ...track, youtubeMusicUrl: safeUrl }, ok: matches };
     })
   );
 
   const playable = results.filter((r) => r.ok).map((r) => r.track);
-  if (playable.length >= 3) return playable.slice(0, 3);
+  if (playable.length >= 2) return [...pinned, ...playable.slice(0, 2)];
 
-  const fallback = tracks.slice(0, 3);
-  return playable.length ? [...playable, ...fallback.slice(playable.length)] : fallback;
+  const fallback = rest.slice(0, 2).map((track) => ({
+    ...track,
+    youtubeMusicUrl: buildYouTubeMusicSearchUrl(track.title, track.artist)
+  }));
+  return playable.length
+    ? [...pinned, ...playable, ...fallback.slice(playable.length, 2)]
+    : [...pinned, ...fallback];
 }

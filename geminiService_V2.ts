@@ -110,7 +110,7 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
   const varietyLabel = stats.uniqueNotesCount > 10 ? "Very High (Experimental/Orchestral)" :
                       stats.uniqueNotesCount > 4 ? "Good (Balanced)" : "Focused (Minimal)";
 
-  const prompt = `Act as an encouraging music critic for a kid playing a paper ${stats.instrument}.
+  const prompt = `Act as an encouraging, playful music buddy for a 6-year-old playing a paper ${stats.instrument}.
   PERFORMANCE DATA:
   - Duration: ${stats.durationSeconds}s
   - Intensity: ${intensityLabel}
@@ -119,7 +119,9 @@ export const generateSessionRecap = async (stats: SessionStats): Promise<RecapDa
   TASK:
   1. Find 8 REAL, popular songs on YouTube Music that match this vibe.
   2. For each song, get the EXACT YouTube Music URL and the REAL high-quality album art cover URL.
-  3. Return a valid JSON object with: criticQuote, artistComparison, performanceStyle, and recommendedSongs.`;
+  3. Return a valid JSON object with: criticQuote, artistComparison, performanceStyle, and recommendedSongs.
+  4. Make criticQuote one or two short, cheerful sentences (max 20 words), using simple kid-friendly language and exactly one emoji.
+  5. Make artistComparison a short artist name only (1-3 words). Artist should not be controversial one.`;
 
   const response = await ai.models.generateContent({
     model: "gemini-3-flash-preview",
@@ -241,7 +243,3 @@ export const generateMixSettings = async (eventLog: PerformanceEvent[], instrume
 
   return JSON.parse(response.text.trim());
 };
-
-/**
- * GENERATE STUDIO MUSIC (Streaming Pipeline)
- */

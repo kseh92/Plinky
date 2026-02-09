@@ -21,6 +21,7 @@ export function useAppFlow() {
   const [error, setError] = React.useState<string | null>(null);
   const [sessionStats, setSessionStats] = React.useState<SessionStats | null>(null);
   const [jacketKeyword, setJacketKeyword] = React.useState<string | null>(null);
+  const [showDebugHud, setShowDebugHud] = React.useState(false);
 
   const extractKeywordFromName = (name: string) => {
     const cleaned = name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
@@ -168,6 +169,7 @@ export function useAppFlow() {
     step, setStep,
     selectedType, blueprint, hitZones, capturedImage, recording, exploreMode,
     isLoading, error, sessionStats,
+    showDebugHud, setShowDebugHud,
     handlePick, handleCreateCustom, handlePickPreset,
     handleOpenPreset: handlePickPreset,
     handleShowBlueprint, handleQuickStart,

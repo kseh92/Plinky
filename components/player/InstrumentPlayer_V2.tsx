@@ -1,5 +1,6 @@
 
 import React, { useRef, useEffect, useState, useMemo } from 'react';
+import * as Tone from 'tone';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { HitZone, PerformanceEvent, InstrumentType } from '../../services/types';
 import { toneService } from '../../services/toneService';
@@ -21,6 +22,7 @@ interface Props {
   instrumentType: InstrumentType;
   hitZones: HitZone[];
   onExit: (recording: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number; eventLog: PerformanceEvent[] }) => void;
+  showDebugHud?: boolean;
 }
 
 const MascotPlayer: React.FC<{ className?: string }> = ({ className }) => (
@@ -50,7 +52,7 @@ const MascotPlayer: React.FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
-const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit }) => {
+const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, showDebugHud = false }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [landmarker, setLandmarker] = useState<HandLandmarker | null>(null);
@@ -58,6 +60,12 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
   const [hasStarted, setHasStarted] = useState(false);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
   const [zoneScale, setZoneScale] = useState(1.0); 
+  const [debugInfo, setDebugInfo] = useState({
+    hitZones: 0,
+    landmarks: 0,
+    lastHit: '—',
+    audioState: 'unknown'
+  });
   
   const noteCountRef = useRef(0);
   const uniqueNotesRef = useRef<Set<string>>(new Set());
@@ -65,6 +73,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
   const particlesRef = useRef<Particle[]>([]);
   const pointerDownRef = useRef(false);
   const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
+  const roiSupportedRef = useRef<boolean | null>(null);
 
   const instrumentCenter = useMemo(() => {
     if (hitZones.length === 0) return { x: 50, y: 50 };
@@ -403,10 +412,25 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
         const roi = aspect >= 1
           ? { left: (1 - (vh / vw)) / 2, top: 0, right: 1 - (1 - (vh / vw)) / 2, bottom: 1 }
           : { left: 0, top: (1 - (vw / vh)) / 2, right: 1, bottom: 1 - (1 - (vw / vh)) / 2 };
-        const results = landmarker.detectForVideo(videoRef.current, performance.now(), {
-          regionOfInterest: roi,
-          rotationDegrees: 0
-        });
+        let results;
+        if (roiSupportedRef.current !== false) {
+          try {
+            results = landmarker.detectForVideo(videoRef.current, performance.now(), {
+              regionOfInterest: roi,
+              rotationDegrees: 0
+            });
+            roiSupportedRef.current = true;
+          } catch (err) {
+            roiSupportedRef.current = false;
+            if (showDebugHud) {
+              console.warn('[InstrumentPlayer] ROI not supported, retrying without ROI.', err);
+            }
+            results = landmarker.detectForVideo(videoRef.current, performance.now());
+          }
+        } else {
+          results = landmarker.detectForVideo(videoRef.current, performance.now());
+        }
+        const landmarksCount = results?.landmarks ? results.landmarks.length : 0;
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
           canvasRef.current.width = vw;
@@ -451,6 +475,10 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
               toneService.play(taggedSound, undefined, instrumentType);
               noteCountRef.current += 1;
               uniqueNotesRef.current.add(sound);
+              setDebugInfo((prev) => ({
+                ...prev,
+                lastHit: sound
+              }));
               const zone = hitZones.find(z => z.sound === sound);
               if (zone) {
                 const scaled = scaledZones.find(z => z.sound === sound);
@@ -473,6 +501,12 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
             }
           });
           activeHitsRef.current = frameHits;
+          setDebugInfo((prev) => ({
+            ...prev,
+            hitZones: hitZones.length,
+            landmarks: landmarksCount,
+            audioState: (Tone.getContext().state || 'unknown')
+          }));
 
           if (instrumentType === 'Piano' && scaledZones.length > 0) {
             const minX = Math.min(...scaledZones.map(z => z.sX));
@@ -671,6 +705,15 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
                -
              </button>
            </div>
+        </div>
+      )}
+
+      {hasStarted && showDebugHud && (
+        <div className="absolute left-6 top-6 z-40 bg-black/60 text-white text-xs font-mono px-3 py-2 rounded-lg border border-white/10">
+          <div>Zones: {debugInfo.hitZones}</div>
+          <div>Landmarks: {debugInfo.landmarks}</div>
+          <div>Last Hit: {debugInfo.lastHit}</div>
+          <div>Audio: {debugInfo.audioState}</div>
         </div>
       )}
 

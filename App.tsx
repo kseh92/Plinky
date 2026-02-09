@@ -35,6 +35,7 @@ import BlueprintDisplay from './components/player/BlueprintDisplay';
 import CameraScanner from './components/player/CameraScanner';
 import ScanConfirmationScreen from './components/player/ScanConfirmationScreen';
 import InstrumentPlayer from './components/player/InstrumentPlayer_V2';
+import ErrorBoundary from './components/common/ErrorBoundary';
 import ResultScreen from './components/player/ResultScreen_V2';
 
 import { INSTRUMENTS, getInstrumentIcon } from './services/constants';
@@ -54,6 +55,8 @@ const App: React.FC = () => {
     recording,
     sessionStats,
     exploreMode,
+    showDebugHud,
+    setShowDebugHud,
     handlePick,
     handleCreateCustom,
     handlePickPreset,
@@ -312,7 +315,11 @@ const App: React.FC = () => {
               <div className="w-full max-w-[1200px] h-[260px] overflow-hidden pointer-events-none z-0 -mb-10 scale-105 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
-              <SettingsPage onBack={() => setStep('landing')} />
+              <SettingsPage
+                onBack={() => setStep('landing')}
+                showDebugHud={showDebugHud}
+                onToggleDebugHud={() => setShowDebugHud((prev) => !prev)}
+              />
             </div>
           )}
 
@@ -340,7 +347,14 @@ const App: React.FC = () => {
           )}
 
           {step === 'play' && hitZones.length > 0 && selectedType && (
-            <InstrumentPlayer instrumentType={selectedType} hitZones={hitZones} onExit={handleFinishedPlaying} />
+            <ErrorBoundary>
+              <InstrumentPlayer
+                instrumentType={selectedType}
+                hitZones={hitZones}
+                onExit={handleFinishedPlaying}
+                showDebugHud={showDebugHud}
+              />
+            </ErrorBoundary>
           )}
 
           {step === 'result' && <ResultScreen recording={recording} onRestart={goHome} stats={sessionStats} />}
@@ -360,4 +374,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-

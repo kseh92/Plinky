@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { InstrumentType } from '../../services/types';
 import { INSTRUMENTS } from '../../services/constants';
 
-const SettingsPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+const SettingsPage: React.FC<{ onBack: () => void; showDebugHud: boolean; onToggleDebugHud: () => void }> = ({ onBack, showDebugHud, onToggleDebugHud }) => {
   const [defaultInstrument, setDefaultInstrument] = useState<InstrumentType>('Piano');
   const [volumeGuard, setVolumeGuard] = useState(true);
   const [playtimeLimit, setPlaytimeLimit] = useState('30m');
@@ -112,6 +112,23 @@ const SettingsPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${gallerySharing ? 'translate-x-9' : 'translate-x-1'}`} />
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* Debug Section */}
+        <section className="bg-white/60 p-8 md:p-10 rounded-[3rem] border-4 border-white shadow-xl">
+          <h3 className="text-2xl font-black text-[#1e3a8a] uppercase tracking-widest mb-6">Developer Tools 🧪</h3>
+          <div className="bg-white/80 p-6 rounded-[2.5rem] border-2 border-white flex items-center justify-between shadow-md">
+            <div className="pr-4">
+              <p className="font-black text-[#1e3a8a] uppercase tracking-wider">Instrument HUD</p>
+              <p className="text-xs text-[#1e3a8a]/60 font-bold">Show live diagnostics during play</p>
+            </div>
+            <button
+              onClick={onToggleDebugHud}
+              className={`w-16 h-8 rounded-full relative transition-colors ${showDebugHud ? 'bg-green-400' : 'bg-gray-300'}`}
+            >
+              <div className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-transform ${showDebugHud ? 'translate-x-9' : 'translate-x-1'}`} />
+            </button>
           </div>
         </section>
       </div>

@@ -68,6 +68,18 @@
 - **Prompt**: "If blueprint is made through scan or explore, try to find any object in the photo or prompt to use as a keyword in the album jacket generation. And use the keyword in the song's name generation as well."
 - **Result**: Extracted a keyword from scan images (best-effort object detection) or explore custom names and passed it into album jacket generation and mix title creation.
 
+## 2026-02-08: Instrument Buddy Toggle
+- **Prompt**: "In the InstrumentPlayer, can you make a small disable button for the monster doodle on the bottom left side?"
+- **Result**: Added a small toggle button to show/hide the bottom-left mascot in `InstrumentPlayer_V2.tsx`.
+
+## 2026-02-08: YouTube Music Verification Logic
+- **Prompt**: "After checking the youtube availability, make sure not to include the same songs twice... re-explain logic... should not do number 3. Pin the first item. Actually recommendations should be all from verified matches but first recommendation should be matching the artistComparison."
+- **Result**: Updated YouTube Music recommendation filtering to keep only verified matches, reorder to place `artistComparison` first, and dedupe by title/artist so duplicates are removed.
+
+## 2026-02-08: Drum Crash Zone Mapping
+- **Prompt**: "If I scan the drum, I want to make sure that top left and top right zones are allocated to the crash. It can only apply if there are more than 5 zones to hit. OR make it more than 4 zones."
+- **Result**: For drum scans with more than 4 zones, the top-left and top-right zones are forced to `crash_l` and `crash_r`, while remaining zones are randomly assigned non-crash drum sounds.
+
 ## 2026-02-08: Piano Doodle Render, Mirroring, and Silhouette-Based Scan Alignment
 - **Prompt**: "Rebuild the piano rendering in a kid-doodle style (black doodle lines, black keys filled, white keys semi-transparent). Fix mirroring issues between piano, canvas, and hands. Keep particle/feedback effects above the instrument. Make scan results follow the scanned silhouette (especially for piano) and improve scan reliability. Adjust camera scan UI so buttons don’t block the view, and keep scan preview mirrored."
 - **Result**: Reworked piano rendering to doodle-style keys with black/white fills and hand-drawn outlines. Corrected mirroring by flipping piano hit zones while keeping video/canvas consistency and made scan preview mirrored. Moved particle effects and finger markers above instrument rendering. Added silhouette extraction + overlay for scan confirmation/play, refined bounds detection to avoid border frames, and re-mapped piano zones to silhouette bounds using scanned key count. Improved scan prompts/thresholds and adjusted CameraScanner layout so buttons sit below the preview.

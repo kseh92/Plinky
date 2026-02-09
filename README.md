@@ -18,3 +18,37 @@ View your app in AI Studio: https://ai.studio/apps/drive/1qCxUINSY6bwTYKDIPEktMF
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+
+## Overview
+
+**What this is**
+- Paper Instruments is a browser app where kids draw instruments, scan them, and play them with hand tracking. It also generates an AI studio mix, album jacket, and recap.
+
+**Core products & libraries**
+- Frontend: React + Vite
+- Computer Vision: MediaPipe Hand Landmarker (`@mediapipe/tasks-vision`)
+- Audio Engine: Tone.js
+- Generative AI: Google Gemini API (`@google/genai`)
+- Music generation: Gemini + Lyria RealTime (streamed audio)
+- Recommendations: YouTube Music (validated via oEmbed + URL normalization)
+
+**How it connects**
+1. User flow (state machine)
+   - `landing → pick → provide → scan → confirmScan → play → result`
+2. Blueprint + Scan (Gemini vision)
+   - `scanDrawing` returns hit zones (0–100% coords). If scanning fails, preset zones are used.
+3. Play (MediaPipe + Tone.js)
+   - MediaPipe tracks fingertips; collision with hit zones triggers Tone.js sounds.
+   - Performance is recorded (audio + event log).
+4. Result (Recap + Studio Mix)
+   - Gemini generates recap, artist comparison, and recommended tracks.
+   - Gemini image generation creates a cover; a keyword from scan/explore can be injected.
+   - Lyria RealTime streams a studio mix; WAV is built for playback/download.
+
+**Key files**
+- App flow: `components/app/useAppFlow.tsx`, `App.tsx`
+- Vision/scan: `geminiService_V2.ts` (`generateBlueprint`, `scanDrawing`)
+- Play engine: `components/player/InstrumentPlayer_V2.tsx`, `services/toneService.ts`
+- Result/recap: `components/player/ResultScreen_V2.tsx`, `components/player/RecapCard_V2.tsx`
+- Recommendations: `services/youtubeAvailability.ts`
+- Studio mix: `services/aiComposer.ts`, `services/lyriaStudio.ts`

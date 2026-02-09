@@ -4,6 +4,30 @@
 - **Prompt**: "Build 'Paper Instruments' - an app where kids draw instruments on paper, scan them, and play them using hand tracking. Include a 'Gemini Studio' feature that masters their recording into a hit song."
 - **Result**: Established the core project structure, integrated MediaPipe HandLandmarker for vision, implemented the Tone.js audio engine, and created the "Gemini Studio" mastering pipeline.
 
+## 2026-02-02: Uploads, Recording, and Result UX
+- **Prompt**: "Allow image upload instead of only camera... No sound on play... Save result file."
+- **Result**: Added upload flow, fixed audio context start, added recording + result download UI.
+
+## 2026-02-02: Audio Reliability & Drum Mapping Iterations
+- **Prompt**: "Fix sample loading errors... All buttons have same sound... Drum sounds like beeps... Remap toms/cymbals... Fix audio init errors."
+- **Result**: Stabilized ToneService with synth fallbacks, corrected sample paths, improved fuzzy drum label mapping, and tuned tom synthesis settings.
+
+## 2026-02-03: Piano/Blueprint Scanning Improvements
+- **Prompt**: "Piano zones not visible... Where did sharps go?... If scan fails, use default hit zones."
+- **Result**: Refined scan prompts for piano keys (including sharps), improved hit zone rendering, and added preset zone fallbacks for faster/safer use.
+
+## 2026-02-03: Recap & Recommendations
+- **Prompt**: "Add Session Recap... Recommend ~3 songs... Links not available on YouTube Music... Make recommendations more mainstream."
+- **Result**: Added recap card, expanded recommendation schema, and adjusted prompting toward mainstream pop with safer link handling.
+
+## 2026-02-04: AI Mixing & Studio Mastering Evolution
+- **Prompt**: "Add AI Mixing Engine... Generate mix settings... Extend to 1–2 minute studio mix... Enable download... Use Lyria/streaming audio... Fix streaming errors."
+- **Result**: Implemented mix settings generation, event log–driven arrangements, studio mix recording + download, and multiple iterations of streaming/AI audio generation reliability fixes.
+
+## 2026-02-04: UX & Visual Tweaks
+- **Prompt**: "Center drum/piano selections... Remove styling and magic mode... Adjust label overlap... Add harp instrument."
+- **Result**: Updated layout and visuals, removed conflicting visual filters, improved label placement, and added harp support with tailored synth routing.
+
 ## 2026-02-05: Tone.js Harp Synthesis & Polyphony Fix
 - **Prompt**: "Fix the following error: 'Voice must extend Monophonic class' in Tone.js when playing the Harp. This happened while trying to implement the Blueprint Engine."
 - **Result**: Updated `services/toneService.ts` to use `PolySynth` with `FMSynth` for the Harp. This resolved the compatibility error and allowed for rich, overlapping string resonances.
@@ -67,6 +91,18 @@
 ## 2026-02-08: Album Jacket & Title Keywords
 - **Prompt**: "If blueprint is made through scan or explore, try to find any object in the photo or prompt to use as a keyword in the album jacket generation. And use the keyword in the song's name generation as well."
 - **Result**: Extracted a keyword from scan images (best-effort object detection) or explore custom names and passed it into album jacket generation and mix title creation.
+
+## 2026-02-08: Instrument Buddy Toggle
+- **Prompt**: "In the InstrumentPlayer, can you make a small disable button for the monster doodle on the bottom left side?"
+- **Result**: Added a small toggle button to show/hide the bottom-left mascot in `InstrumentPlayer_V2.tsx`.
+
+## 2026-02-08: YouTube Music Verification Logic
+- **Prompt**: "After checking the youtube availability, make sure not to include the same songs twice... re-explain logic... should not do number 3. Pin the first item. Actually recommendations should be all from verified matches but first recommendation should be matching the artistComparison."
+- **Result**: Updated YouTube Music recommendation filtering to keep only verified matches, reorder to place `artistComparison` first, and dedupe by title/artist so duplicates are removed.
+
+## 2026-02-08: Drum Crash Zone Mapping
+- **Prompt**: "If I scan the drum, I want to make sure that top left and top right zones are allocated to the crash. It can only apply if there are more than 5 zones to hit. OR make it more than 4 zones."
+- **Result**: For drum scans with more than 4 zones, the top-left and top-right zones are forced to `crash_l` and `crash_r`, while remaining zones are randomly assigned non-crash drum sounds.
 
 ## 2026-02-08: Piano Doodle Render, Mirroring, and Silhouette-Based Scan Alignment
 - **Prompt**: "Rebuild the piano rendering in a kid-doodle style (black doodle lines, black keys filled, white keys semi-transparent). Fix mirroring issues between piano, canvas, and hands. Keep particle/feedback effects above the instrument. Make scan results follow the scanned silhouette (especially for piano) and improve scan reliability. Adjust camera scan UI so buttons don’t block the view, and keep scan preview mirrored."

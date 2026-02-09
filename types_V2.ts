@@ -4,7 +4,8 @@ export type InstrumentType = 'Drum' | 'Piano' | 'Guitar' | 'Harp' | string;
 export enum AppMode {
   PIANO = 'PIANO',
   XYLOPHONE = 'XYLOPHONE',
-  HARP = 'HARP'
+  HARP = 'HARP',
+  DRUM = 'DRUM'
 }
 
 export interface PerformanceEvent {

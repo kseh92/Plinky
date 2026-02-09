@@ -53,6 +53,7 @@ const MascotPlayer: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, showDebugHud = false }) => {
+  const TOUCH_DEBOUNCE_MS = 15;
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [landmarker, setLandmarker] = useState<HandLandmarker | null>(null);
@@ -79,6 +80,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
   const pointerDownRef = useRef(false);
   const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
   const roiSupportedRef = useRef<boolean | null>(null);
+  const firstTouchTimeRef = useRef<number | null>(null);
 
   const instrumentCenter = useMemo(() => {
     if (hitZones.length === 0) return { x: 50, y: 50 };
@@ -226,10 +228,14 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
 
     const now = Date.now();
     const lastTime = lastTouchTimeRef.current.get(hitZone.sound) || 0;
-    if (now - lastTime < 40) return;
+    if (now - lastTime < TOUCH_DEBOUNCE_MS) return;
     lastTouchTimeRef.current.set(hitZone.sound, now);
 
     const taggedSound = instrumentType === 'Harp' ? `harp:${hitZone.sound}` : hitZone.sound;
+    if (firstTouchTimeRef.current === null) {
+      firstTouchTimeRef.current = performance.now();
+      toneService.setRecordingStartNow();
+    }
     toneService.play(taggedSound, undefined, instrumentType);
     if (instrumentType === 'Harp' || instrumentType === 'Piano') {
       window.setTimeout(() => toneService.release(taggedSound, undefined, instrumentType), 200);

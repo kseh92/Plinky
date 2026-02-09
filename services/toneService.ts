@@ -359,6 +359,10 @@ class ToneService {
     this.recorder.start();
   }
 
+  setRecordingStartNow() {
+    this._recordingStart = performance.now();
+  }
+
   async stopRecording(): Promise<{ blob: Blob; duration: number; eventLog: PerformanceEvent[] } | null> {
     if (this.recorder?.state === 'started') {
       try {

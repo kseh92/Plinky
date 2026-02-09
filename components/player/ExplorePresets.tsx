@@ -1,7 +1,7 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+﻿import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 import { AppMode, PerformanceEvent } from '../../services/types';
-import { PIANO_KEYS, XYLOPHONE_BARS, HARP_STRINGS } from '../../services/constants';
+import { PIANO_KEYS, XYLOPHONE_BARS, HARP_STRINGS, DRUM_PADS } from '../../services/constants';
 import { toneService } from '../../services/toneService';
 
 interface ConfettiParticle {
@@ -17,13 +17,29 @@ interface ConfettiParticle {
 interface Props {
   mode: AppMode;
   onExit: (recording: Blob | null, stats: { noteCount: number; uniqueNotes: Set<string>; duration: number; eventLog: PerformanceEvent[] }) => void;
+  onSwitchPreset?: (mode: AppMode, name: string) => void;
+  presetName?: string;
+  overlayImage?: string | null;
+  overlayTexture?: string | null;
+  overlayLoading?: boolean;
 }
 
-const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
+const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetName, overlayImage, overlayTexture, overlayLoading }) => {
+  const TOUCH_DEBOUNCE_MS = 15;
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [landmarker, setLandmarker] = useState<HandLandmarker | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVisionReady, setIsVisionReady] = useState(false);
+  const [isCameraReady, setIsCameraReady] = useState(false);
+  const [minDelayElapsed, setMinDelayElapsed] = useState(false);
+  const [overlayReady, setOverlayReady] = useState(false);
+  const overlayImageRef = useRef<HTMLImageElement | null>(null);
+  const [textureReady, setTextureReady] = useState(false);
+  const textureImageRef = useRef<HTMLImageElement | null>(null);
+  const [zoneScale, setZoneScale] = useState(1.0);
+  const roiSupportedRef = useRef<boolean | null>(null);
+  const loadStartRef = useRef<number | null>(null);
 
   const noteCountRef = useRef(0);
   const uniqueNotesRef = useRef<Set<string>>(new Set());
@@ -33,9 +49,250 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
   const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
   const audioReadyRef = useRef(false);
   const pointerDownRef = useRef(false);
-  const roiSupportedRef = useRef<boolean | null>(null);
+  const firstTouchTimeRef = useRef<number | null>(null);
+
+  const presetOptions = [
+    { name: 'Piano with wings', mode: AppMode.PIANO, color: 'bg-blue-500', emoji: '🎹🪽' },
+    { name: 'Snake-shaped xylophone', mode: AppMode.XYLOPHONE, color: 'bg-emerald-500', emoji: '🐍' },
+    { name: 'Neon-harp', mode: AppMode.HARP, color: 'bg-fuchsia-500', emoji: '🎼✨' }
+  ];
+
+  const getPrefix = (currentMode: AppMode) => {
+    if (currentMode === AppMode.HARP) return 'neon:';
+    if (currentMode === AppMode.XYLOPHONE) return 'xylo:';
+    if (currentMode === AppMode.DRUM) return 'drum:';
+    return '';
+  };
+
+  const withPrefix = (currentMode: AppMode, note: string) => {
+    const prefix = getPrefix(currentMode);
+    return prefix ? `${prefix}${note}` : note;
+  };
+
+  const enableAudio = async () => {
+    if (audioReadyRef.current) return;
+    await toneService.init();
+    await toneService.startRecording();
+    audioReadyRef.current = true;
+  };
+
+  const isCustomDraw = !presetOptions.some((p) => p.name.toLowerCase() === (presetName || '').toLowerCase());
+
+  const getMotif = (text: string) => {
+    const value = text.toLowerCase();
+    if (value.includes('flower') || value.includes('꽃')) return 'flower';
+    if (value.includes('star')) return 'star';
+    if (value.includes('heart')) return 'heart';
+    if (value.includes('cloud')) return 'cloud';
+    if (value.includes('triangle')) return 'triangle';
+    if (value.includes('square') || value.includes('box')) return 'square';
+    if (value.includes('circle') || value.includes('sun') || value.includes('moon')) return 'circle';
+    return 'blob';
+  };
+
+  const drawMotif = (ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number, motif: string) => {
+    ctx.beginPath();
+    if (motif === 'flower') {
+      const petalCount = 6;
+      for (let i = 0; i < petalCount; i++) {
+        const angle = (Math.PI * 2 * i) / petalCount;
+        const px = cx + Math.cos(angle) * size * 0.75;
+        const py = cy + Math.sin(angle) * size * 0.75;
+        ctx.ellipse(px, py, size * 0.45, size * 0.7, angle, 0, Math.PI * 2);
+      }
+      ctx.closePath();
+      ctx.moveTo(cx + size * 0.35, cy);
+      ctx.arc(cx, cy, size * 0.35, 0, Math.PI * 2);
+    } else if (motif === 'star') {
+      for (let i = 0; i < 10; i++) {
+        const angle = (Math.PI / 5) * i - Math.PI / 2;
+        const r = i % 2 === 0 ? size : size * 0.45;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+    } else if (motif === 'heart') {
+      ctx.moveTo(cx, cy + size * 0.6);
+      ctx.bezierCurveTo(cx - size, cy, cx - size * 0.2, cy - size * 0.7, cx, cy - size * 0.2);
+      ctx.bezierCurveTo(cx + size * 0.2, cy - size * 0.7, cx + size, cy, cx, cy + size * 0.6);
+      ctx.closePath();
+    } else if (motif === 'cloud') {
+      const bumps = [
+        [-0.9, 0.05, 0.7, 0.5],
+        [-0.4, -0.05, 0.8, 0.58],
+        [0.1, -0.1, 0.9, 0.65],
+        [0.65, 0.05, 0.7, 0.5],
+        [-1.2, 0.2, 0.55, 0.4],
+        [0.95, 0.2, 0.55, 0.4],
+        [-0.1, 0.35, 1.0, 0.55]
+      ];
+      bumps.forEach(([ox, oy, rw, rh]) => {
+        ctx.ellipse(
+          cx + size * ox,
+          cy + size * oy,
+          size * rw,
+          size * rh,
+          0,
+          0,
+          Math.PI * 2
+        );
+      });
+    } else if (motif === 'triangle') {
+      ctx.moveTo(cx, cy - size);
+      ctx.lineTo(cx + size, cy + size);
+      ctx.lineTo(cx - size, cy + size);
+      ctx.closePath();
+    } else if (motif === 'square') {
+      ctx.rect(cx - size, cy - size, size * 2, size * 2);
+    } else if (motif === 'circle') {
+      ctx.arc(cx, cy, size, 0, Math.PI * 2);
+    } else {
+      ctx.moveTo(cx - size, cy);
+      ctx.bezierCurveTo(cx - size * 1.2, cy - size, cx + size * 0.2, cy - size * 1.2, cx + size, cy);
+      ctx.bezierCurveTo(cx + size * 1.2, cy + size, cx - size * 0.2, cy + size * 1.2, cx - size, cy);
+      ctx.closePath();
+    }
+  };
+
+  const drawCustomOverlay = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
+    const name = presetName || '';
+    const motif = getMotif(name);
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+
+    if (mode === AppMode.DRUM) {
+      const bodyW = w * 0.42;
+      const bodyH = h * 0.26;
+      const cx = w * 0.5;
+      const cy = h * 0.55;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, bodyW / 2, bodyH / 2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(248, 113, 113, 0.3)';
+      ctx.fill();
+
+      if (motif === 'cloud') {
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-over';
+        DRUM_PADS.forEach((pad) => {
+          const padCx = (pad.rect.x + pad.rect.w / 2) * w;
+          const padCy = (pad.rect.y + pad.rect.h / 2) * h;
+          const padSize = Math.min(pad.rect.w * w, pad.rect.h * h) * 0.9;
+          if (textureImageRef.current && textureReady) {
+            const img = textureImageRef.current;
+            ctx.save();
+            ctx.beginPath();
+            drawMotif(ctx, padCx, padCy, padSize, motif);
+            ctx.clip();
+            const scale = Math.max((padSize * 2) / img.width, (padSize * 2) / img.height);
+            const drawW = img.width * scale;
+            const drawH = img.height * scale;
+            ctx.drawImage(img, padCx - drawW / 2, padCy - drawH / 2, drawW, drawH);
+            ctx.restore();
+          } else {
+            ctx.beginPath();
+            drawMotif(ctx, padCx, padCy, padSize, motif);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.fill();
+          }
+        });
+        ctx.restore();
+      } else {
+        const topCy = cy - bodyH * 0.8;
+        const r = Math.min(w, h) * 0.06;
+        const positions = [
+          [cx - bodyW * 0.25, topCy],
+          [cx, topCy - r * 0.6],
+          [cx + bodyW * 0.25, topCy]
+        ];
+        positions.forEach(([x, y]) => {
+          ctx.beginPath();
+          drawMotif(ctx, x, y, r, motif);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.fill();
+        });
+      }
+    } else if (mode === AppMode.PIANO) {
+      const baseX = w * 0.22;
+      const baseY = h * 0.56;
+      const baseW = w * 0.56;
+      const baseH = h * 0.22;
+      ctx.beginPath();
+      ctx.roundRect?.(baseX, baseY, baseW, baseH, 24);
+      if (!ctx.roundRect) ctx.rect(baseX, baseY, baseW, baseH);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+      ctx.fill();
+
+      const r = Math.min(w, h) * 0.05;
+      const x = w * 0.5;
+      const y = h * 0.38;
+      ctx.beginPath();
+      drawMotif(ctx, x, y, r, motif);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+    } else if (mode === AppMode.HARP) {
+      const x = w * 0.5;
+      const y = h * 0.32;
+      const r = Math.min(w, h) * 0.07;
+      ctx.beginPath();
+      drawMotif(ctx, x, y, r, motif);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+    } else {
+      const x = w * 0.5;
+      const y = h * 0.32;
+      const r = Math.min(w, h) * 0.07;
+      ctx.beginPath();
+      drawMotif(ctx, x, y, r, motif);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fill();
+    }
+    ctx.restore();
+  };
 
   useEffect(() => {
+    if (!overlayImage) {
+      overlayImageRef.current = null;
+      setOverlayReady(false);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      overlayImageRef.current = img;
+      setOverlayReady(true);
+    };
+    img.onerror = () => {
+      overlayImageRef.current = null;
+      setOverlayReady(false);
+    };
+    img.src = overlayImage;
+  }, [overlayImage]);
+
+  useEffect(() => {
+    if (!overlayTexture) {
+      textureImageRef.current = null;
+      setTextureReady(false);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      textureImageRef.current = img;
+      setTextureReady(true);
+    };
+    img.onerror = () => {
+      textureImageRef.current = null;
+      setTextureReady(false);
+    };
+    img.src = overlayTexture;
+  }, [overlayTexture]);
+
+  useEffect(() => {
+    loadStartRef.current = performance.now();
+    setMinDelayElapsed(false);
+    const minTimer = window.setTimeout(() => setMinDelayElapsed(true), 800);
+
     const initMediaPipe = async () => {
       try {
         const vision = await FilesetResolver.forVisionTasks(
@@ -50,12 +307,10 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
           numHands: 2
         });
         setLandmarker(hl);
-
-        await toneService.init();
-        await toneService.startRecording();
-        setIsLoading(false);
+        setIsVisionReady(true);
       } catch (err) {
         console.error('MediaPipe Init Error:', err);
+        setIsVisionReady(true);
       }
     };
     initMediaPipe();
@@ -65,19 +320,33 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
         const stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: 1280, height: 720 }
         });
-        if (videoRef.current) videoRef.current.srcObject = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          const handleLoaded = () => {
+            setIsCameraReady(true);
+            videoRef.current?.removeEventListener('loadedmetadata', handleLoaded);
+          };
+          videoRef.current.addEventListener('loadedmetadata', handleLoaded);
+        }
       } catch (e) {
         console.error('Camera failed', e);
+        setIsCameraReady(true);
       }
     };
     startCamera();
 
     return () => {
+      window.clearTimeout(minTimer);
       if (videoRef.current?.srcObject) {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
       }
     };
   }, []);
+
+  useEffect(() => {
+    const ready = isVisionReady && isCameraReady;
+    setIsLoading(!(ready && minDelayElapsed));
+  }, [isVisionReady, isCameraReady, minDelayElapsed]);
 
   const spawnConfetti = useCallback((x: number, y: number, color: string) => {
     for (let i = 0; i < 6; i++) {
@@ -162,7 +431,13 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
     // Canvas is mirrored via CSS scaleX(-1)
     tx = 1 - tx;
 
-    const list = mode === AppMode.PIANO ? PIANO_KEYS : mode === AppMode.XYLOPHONE ? XYLOPHONE_BARS : HARP_STRINGS;
+    const list = mode === AppMode.PIANO
+      ? PIANO_KEYS
+      : mode === AppMode.XYLOPHONE
+        ? XYLOPHONE_BARS
+        : mode === AppMode.HARP
+          ? HARP_STRINGS
+          : DRUM_PADS;
     const hit = list.find((item) =>
       tx >= item.rect.x && tx <= item.rect.x + item.rect.w &&
       ty >= item.rect.y && ty <= item.rect.y + item.rect.h
@@ -174,11 +449,10 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
 
     const now = Date.now();
     const lastTime = lastTouchTimeRef.current.get(hit.note) || 0;
-    if (now - lastTime < 40) return;
+    if (now - lastTime < TOUCH_DEBOUNCE_MS) return;
     lastTouchTimeRef.current.set(hit.note, now);
 
-    const prefix = mode === AppMode.HARP ? 'neon:' : mode === AppMode.XYLOPHONE ? 'xylo:' : '';
-    const soundId = `${prefix}${hit.note}`;
+    const soundId = withPrefix(mode, hit.note);
     toneService.play(soundId);
     if (mode === AppMode.HARP) {
       window.setTimeout(() => toneService.release(soundId), 200);
@@ -230,6 +504,42 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
           const frameHits = new Set<string>();
           const now = Date.now();
 
+          const list =
+            mode === AppMode.PIANO
+              ? PIANO_KEYS
+              : mode === AppMode.XYLOPHONE
+                ? XYLOPHONE_BARS
+                : mode === AppMode.HARP
+                  ? HARP_STRINGS
+                  : DRUM_PADS;
+
+          const bounds = list.reduce(
+            (acc, item) => {
+              acc.minX = Math.min(acc.minX, item.rect.x);
+              acc.minY = Math.min(acc.minY, item.rect.y);
+              acc.maxX = Math.max(acc.maxX, item.rect.x + item.rect.w);
+              acc.maxY = Math.max(acc.maxY, item.rect.y + item.rect.h);
+              return acc;
+            },
+            { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+          );
+          const centerX = (bounds.minX + bounds.maxX) / 2;
+          const centerY = (bounds.minY + bounds.maxY) / 2;
+
+          const xOffset = mode === AppMode.XYLOPHONE ? 0.06 * zoneScale : 0;
+          const scaleRect = (rect: { x: number; y: number; w: number; h: number }) => {
+            const scaledW = rect.w * zoneScale;
+            const scaledH = rect.h * zoneScale;
+            const scaledX = centerX + (rect.x - centerX) * zoneScale;
+            const scaledY = centerY + (rect.y - centerY) * zoneScale;
+            return {
+              x: scaledX + xOffset,
+              y: scaledY,
+              w: scaledW,
+              h: scaledH
+            };
+          };
+
           if (results.landmarks) {
             results.landmarks.forEach((landmarks) => {
               const indexTip = landmarks[8];
@@ -237,10 +547,10 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
               [indexTip, thumbTip].forEach((tip) => {
                 const tx = tip.x;
                 const ty = tip.y;
-                const checkList = mode === AppMode.PIANO ? PIANO_KEYS : mode === AppMode.XYLOPHONE ? XYLOPHONE_BARS : HARP_STRINGS;
-                checkList.forEach((item) => {
-                  if (tx >= item.rect.x && tx <= item.rect.x + item.rect.w &&
-                      ty >= item.rect.y && ty <= item.rect.y + item.rect.h) {
+                list.forEach((item) => {
+                  const rect = scaleRect(item.rect);
+                  if (tx >= rect.x && tx <= rect.x + rect.w &&
+                      ty >= rect.y && ty <= rect.y + rect.h) {
                     frameHits.add(item.note);
                   }
                 });
@@ -258,35 +568,70 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
 
           frameHits.forEach((note) => {
             if (!activeHitsRef.current.has(note)) {
-              const searchList = mode === AppMode.PIANO ? PIANO_KEYS : mode === AppMode.XYLOPHONE ? XYLOPHONE_BARS : HARP_STRINGS;
-              const found = searchList.find((k) => k.note === note);
+              const found = list.find((k) => k.note === note);
               if (found) {
-                const prefix = mode === AppMode.HARP ? 'neon:' : mode === AppMode.XYLOPHONE ? 'xylo:' : '';
-                toneService.startNote(`${prefix}${note}`);
-                noteCountRef.current++;
-                uniqueNotesRef.current.add(note);
-                spawnConfetti(found.rect.x + found.rect.w / 2, found.rect.y + found.rect.h / 2, found.color);
-                lastHitTimeRef.current.set(note, now);
+                if (mode === AppMode.HARP) {
+                  const lastHit = lastHitTimeRef.current.get(note) || 0;
+                  if (now - lastHit >= 70) {
+                    if (firstTouchTimeRef.current === null) {
+                      firstTouchTimeRef.current = performance.now();
+                      toneService.setRecordingStartNow();
+                    }
+                    toneService.startNote(withPrefix(mode, note));
+                    window.setTimeout(() => toneService.stopNote(withPrefix(mode, note)), 200);
+                    noteCountRef.current++;
+                    uniqueNotesRef.current.add(note);
+                    spawnConfetti(found.rect.x + found.rect.w / 2, found.rect.y + found.rect.h / 2, found.color);
+                    lastHitTimeRef.current.set(note, now);
+                  }
+                } else {
+                  if (firstTouchTimeRef.current === null) {
+                    firstTouchTimeRef.current = performance.now();
+                    toneService.setRecordingStartNow();
+                  }
+                  toneService.startNote(withPrefix(mode, note));
+                  noteCountRef.current++;
+                  uniqueNotesRef.current.add(note);
+                  spawnConfetti(found.rect.x + found.rect.w / 2, found.rect.y + found.rect.h / 2, found.color);
+                  lastHitTimeRef.current.set(note, now);
+                }
               }
             }
           });
-          activeHitsRef.current.forEach((note) => {
-            if (!frameHits.has(note)) {
-              const prefix = mode === AppMode.HARP ? 'neon:' : mode === AppMode.XYLOPHONE ? 'xylo:' : '';
-              toneService.stopNote(`${prefix}${note}`);
-            }
-          });
+          if (mode !== AppMode.HARP) {
+            activeHitsRef.current.forEach((note) => {
+              if (!frameHits.has(note)) {
+                toneService.stopNote(withPrefix(mode, note));
+              }
+            });
+          }
           activeHitsRef.current = frameHits;
 
           if (mode === AppMode.PIANO) {
             const isAnyActive = frameHits.size > 0;
-            drawDoodleWing(ctx, w * 0.18, h * 0.6, -1, isAnyActive, w);
-            drawDoodleWing(ctx, w * 0.82, h * 0.6, 1, isAnyActive, w);
+            const scaledBounds = list.reduce(
+              (acc, item) => {
+                const rect = scaleRect(item.rect);
+                acc.minX = Math.min(acc.minX, rect.x);
+                acc.minY = Math.min(acc.minY, rect.y);
+                acc.maxX = Math.max(acc.maxX, rect.x + rect.w);
+                acc.maxY = Math.max(acc.maxY, rect.y + rect.h);
+                return acc;
+              },
+              { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+            );
+            const wingY = (scaledBounds.minY + scaledBounds.maxY) / 2 * h;
+            const wingW = (scaledBounds.maxX - scaledBounds.minX) * w;
+            const leftX = scaledBounds.minX * w - wingW * 0.05;
+            const rightX = scaledBounds.maxX * w + wingW * 0.05;
+            drawDoodleWing(ctx, leftX, wingY, -1, isAnyActive, wingW);
+            drawDoodleWing(ctx, rightX, wingY, 1, isAnyActive, wingW);
             PIANO_KEYS.forEach((key) => {
-              const kx = key.rect.x * w;
-              const ky = key.rect.y * h;
-              const kw = key.rect.w * w;
-              const kh = key.rect.h * h;
+              const rect = scaleRect(key.rect);
+              const kx = rect.x * w;
+              const ky = rect.y * h;
+              const kw = rect.w * w;
+              const kh = rect.h * h;
               const isActive = frameHits.has(key.note);
               ctx.fillStyle = isActive ? key.color : (key.isBlack ? '#000' : 'rgba(255,255,255,0.3)');
               ctx.fillRect(kx, ky, kw, kh);
@@ -296,10 +641,11 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
           } else if (mode === AppMode.XYLOPHONE) {
             const drawSnakeHead = () => {
               const firstBar = XYLOPHONE_BARS[0];
-              const barLeftX = firstBar.rect.x * w;
-              const barCenterY = (firstBar.rect.y + firstBar.rect.h / 2) * h;
-              const s = 0.22;
-              const headX = barLeftX - (587.5 * s) + 10;
+              const firstRect = scaleRect(firstBar.rect);
+              const barLeftX = firstRect.x * w;
+              const barCenterY = (firstRect.y + firstRect.h / 2) * h;
+              const s = 0.22 * zoneScale;
+              const headX = barLeftX - (587.5 * s) + 10 - (w * 0.03);
               const headY = barCenterY + Math.sin(now / 200) * 12;
               ctx.save();
               ctx.globalAlpha = 0.6;
@@ -349,8 +695,9 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
             const drawSnakeBody = () => {
               ctx.save();
               ctx.beginPath();
-              const startX = (XYLOPHONE_BARS[0].rect.x - 0.05) * w;
-              const startY = (XYLOPHONE_BARS[0].rect.y + XYLOPHONE_BARS[0].rect.h / 2) * h;
+              const firstRect = scaleRect(XYLOPHONE_BARS[0].rect);
+              const startX = (firstRect.x - 0.05 * zoneScale) * w;
+              const startY = (firstRect.y + firstRect.h / 2) * h;
               ctx.moveTo(startX, startY);
               XYLOPHONE_BARS.forEach((bar) => {
                 const bx = (bar.rect.x + bar.rect.w / 2) * w;
@@ -358,26 +705,31 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
                 ctx.lineTo(bx, by);
               });
               ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-              ctx.lineWidth = 110;
+              ctx.lineWidth = 110 * zoneScale;
               ctx.stroke();
               XYLOPHONE_BARS.forEach((bar) => {
-                const bx = bar.rect.x * w;
-                const by = bar.rect.y * h;
-                const bw = bar.rect.w * w;
-                const bh = bar.rect.h * h;
-                const lastHit = lastHitTimeRef.current.get(bar.note) || 0;
-                const active = (now - lastHit) < 150;
+              const rect = scaleRect(bar.rect);
+              const bx = rect.x * w;
+              const by = rect.y * h;
+              const bw = rect.w * w;
+              const bh = rect.h * h;
+              const lastHit = lastHitTimeRef.current.get(bar.note) || 0;
+              const active = (now - lastHit) < 150;
                 ctx.save();
                 ctx.globalAlpha = 0.6;
                 ctx.fillStyle = bar.color;
                 const cornerRadius = Math.min(bw, bh) * 0.28;
                 ctx.beginPath();
-                ctx.roundRect(bx, by, bw, bh, cornerRadius);
+                if (typeof (ctx as CanvasRenderingContext2D & { roundRect?: Function }).roundRect === 'function') {
+                  ctx.roundRect(bx, by, bw, bh, cornerRadius);
+                } else {
+                  ctx.rect(bx, by, bw, bh);
+                }
                 ctx.fill();
                 if (active) {
                   ctx.globalAlpha = 1.0;
                   ctx.strokeStyle = 'white';
-                  ctx.lineWidth = 4;
+                  ctx.lineWidth = 4 * zoneScale;
                   ctx.stroke();
                 }
                 ctx.restore();
@@ -395,18 +747,19 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
               '#34d399': '#B6FFDA'
             };
             HARP_STRINGS.forEach((str) => {
-              const sx = (str.rect.x + str.rect.w / 2) * w;
+              const rect = scaleRect(str.rect);
+              const sx = (rect.x + rect.w / 2) * w;
               const isActive = frameHits.has(str.note);
               const vibrate = isActive ? Math.sin(Date.now() / 18) * 10 : 0;
               ctx.save();
               ctx.beginPath();
-              ctx.moveTo(sx + vibrate, str.rect.y * h);
-              ctx.lineTo(sx + vibrate, (str.rect.y + str.rect.h) * h);
+              ctx.moveTo(sx + vibrate, rect.y * h);
+              ctx.lineTo(sx + vibrate, (rect.y + rect.h) * h);
               const neonColor = neonMap[str.color] || str.color;
               // Outer neon glow
-              ctx.lineWidth = isActive ? 12 : 8;
+              ctx.lineWidth = (isActive ? 12 : 8) * zoneScale;
               ctx.strokeStyle = neonColor;
-              ctx.shadowBlur = isActive ? 36 : 24;
+              ctx.shadowBlur = (isActive ? 36 : 24) * zoneScale;
               ctx.shadowColor = neonColor;
               if (!isActive) {
                 ctx.globalAlpha = 0.9;
@@ -415,11 +768,53 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
               // Bright core
               ctx.shadowBlur = 0;
               ctx.globalAlpha = 1;
-              ctx.lineWidth = isActive ? 4 : 3;
+              ctx.lineWidth = (isActive ? 4 : 3) * zoneScale;
               ctx.strokeStyle = '#ffffff';
               ctx.stroke();
               ctx.restore();
             });
+          } else if (mode === AppMode.DRUM) {
+            const drawDrumPads = () => {
+              DRUM_PADS.forEach((pad) => {
+                const rect = scaleRect(pad.rect);
+                const px = rect.x * w;
+                const py = rect.y * h;
+                const pw = rect.w * w;
+                const ph = rect.h * h;
+                const isActive = frameHits.has(pad.note);
+                ctx.save();
+                ctx.beginPath();
+                ctx.ellipse(px + pw / 2, py + ph / 2, pw / 2, ph / 2, 0, 0, Math.PI * 2);
+                ctx.fillStyle = isActive ? 'rgba(248, 113, 113, 0.85)' : 'rgba(239, 68, 68, 0.55)';
+                if (pad.note.includes('crash')) {
+                  ctx.fillStyle = isActive ? 'rgba(252, 211, 77, 0.85)' : 'rgba(251, 191, 36, 0.55)';
+                }
+                ctx.shadowBlur = (isActive ? 20 : 10) * zoneScale;
+                ctx.shadowColor = pad.color;
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = (isActive ? 8 : 6) * zoneScale;
+                ctx.stroke();
+                ctx.restore();
+              });
+            };
+            drawDrumPads();
+          }
+
+          if (!isCustomDraw && overlayImageRef.current && overlayReady) {
+            const img = overlayImageRef.current;
+            ctx.save();
+            ctx.globalAlpha = 0.9;
+            const scale = Math.min(w / img.width, h / img.height);
+            const drawW = img.width * scale;
+            const drawH = img.height * scale;
+            const drawX = (w - drawW) / 2;
+            const drawY = (h - drawH) / 2;
+            ctx.drawImage(img, drawX, drawY, drawW, drawH);
+            ctx.restore();
+          }
+          if (isCustomDraw) {
+            drawCustomOverlay(ctx, w, h);
           }
 
           particlesRef.current = particlesRef.current.filter((p) => {
@@ -444,20 +839,21 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
     };
     render();
     return () => cancelAnimationFrame(animationId);
-  }, [landmarker, mode, spawnConfetti]);
+  }, [landmarker, mode, spawnConfetti, zoneScale]);
 
   return (
-    <div className="relative w-full h-full bg-black overflow-hidden flex flex-col items-center justify-center">
+    <div
+      className="relative w-full h-full bg-black overflow-hidden flex flex-col items-center justify-center"
+      onPointerDown={enableAudio}
+      onClick={enableAudio}
+    >
       <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover -scale-x-100" playsInline muted autoPlay />
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"
         onPointerDown={async (e) => {
           pointerDownRef.current = true;
-          if (!audioReadyRef.current) {
-            await toneService.init();
-            audioReadyRef.current = true;
-          }
+          await enableAudio();
           handleTouchPlay(e.clientX, e.clientY);
         }}
         onPointerMove={(e) => {
@@ -476,11 +872,38 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
         </div>
       )}
 
+
+      {overlayLoading && !isLoading && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 bg-white/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/40">
+          <span className="text-white font-black uppercase tracking-widest text-xs">Shaping your instrument...</span>
+        </div>
+      )}
+
       <div className="absolute top-8 left-8 z-20">
         <div className="bg-white/20 backdrop-blur-md px-6 py-2 rounded-full border border-white/40">
-          <span className="text-white font-black uppercase tracking-widest text-sm">Preset Mode: {mode}</span>
+          <span className="text-white font-black uppercase tracking-widest text-sm">
+            Preset Mode: {mode}{presetName ? ` - ${presetName}` : ''}
+          </span>
         </div>
       </div>
+
+      {onSwitchPreset && (
+        <div className="absolute top-8 right-8 z-20 flex items-center gap-3 bg-white/15 backdrop-blur-md px-4 py-3 rounded-full border border-white/30">
+          {presetOptions.map((preset) => {
+            const isActive = preset.mode === mode;
+            return (
+              <button
+                key={preset.name}
+                onClick={() => onSwitchPreset(preset.mode, preset.name)}
+                className={`${preset.color} ${isActive ? 'scale-105 ring-4 ring-white/70' : 'opacity-80 hover:opacity-100'} w-11 h-11 rounded-full shadow-lg font-black text-lg transition-all flex items-center justify-center`}
+                title={preset.name}
+              >
+                <span aria-hidden="true">{preset.emoji}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       <button
         onClick={handleFinish}
@@ -488,8 +911,45 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
       >
         Finish Session
       </button>
+
+      <div className="absolute right-8 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-6 bg-white/20 backdrop-blur-md p-8 rounded-[3rem] border-[6px] border-white/40 shadow-2xl">
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-white font-black uppercase tracking-widest text-[10px]">Instrument Size</span>
+          <span className="text-white font-black text-2xl">{Math.round(zoneScale * 100)}%</span>
+        </div>
+        <div className="h-48 flex items-center">
+          <input
+            type="range"
+            min="0.5"
+            max="2.5"
+            step="0.1"
+            value={zoneScale}
+            onChange={(e) => setZoneScale(parseFloat(e.target.value))}
+            className="h-40 w-4 appearance-none bg-white/30 rounded-full outline-none cursor-pointer"
+            style={{
+              WebkitAppearance: 'slider-vertical',
+              accentColor: '#FF6B6B'
+            }}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setZoneScale((prev) => Math.min(2.5, prev + 0.2))}
+            className="w-10 h-10 bg-white/40 hover:bg-white/60 rounded-full text-white font-black text-xl transition-all shadow-md"
+          >
+            +
+          </button>
+          <button
+            onClick={() => setZoneScale((prev) => Math.max(0.5, prev - 0.2))}
+            className="w-10 h-10 bg-white/40 hover:bg-white/60 rounded-full text-white font-black text-xl transition-all shadow-md"
+          >
+            -
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
 
 export default ExplorePresets;
+

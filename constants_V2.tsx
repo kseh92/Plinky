@@ -123,6 +123,16 @@ export const XYLOPHONE_BARS: PresetKey[] = [
   { note: 'b4', color: '#f472b6', rect: { x: 0.80, y: 0.30, w: 0.073, h: 0.28 } }
 ];
 
+export const DRUM_PADS: PresetKey[] = [
+  { note: 'kick', color: '#f87171', rect: { x: 0.38, y: 0.46, w: 0.24, h: 0.35 } },
+  { note: 'snare', color: '#fb923c', rect: { x: 0.23, y: 0.41, w: 0.15, h: 0.20 } },
+  { note: 'tom_low', color: '#fbbf24', rect: { x: 0.62, y: 0.41, w: 0.15, h: 0.20 } },
+  { note: 'tom_hi', color: '#60a5fa', rect: { x: 0.37, y: 0.25, w: 0.13, h: 0.18 } },
+  { note: 'tom_mid', color: '#a78bfa', rect: { x: 0.50, y: 0.25, w: 0.13, h: 0.18 } },
+  { note: 'crash_l', color: '#fcd34d', rect: { x: 0.22, y: 0.11, w: 0.16, h: 0.20 } },
+  { note: 'crash_r', color: '#fde68a', rect: { x: 0.62, y: 0.11, w: 0.16, h: 0.20 } }
+];
+
 // Precisely mapped hit zones for the images provided
 export const PRESET_ZONES: Record<InstrumentType, HitZone[]> = {
   'Piano': PIANO_KEYS.map((k) => ({

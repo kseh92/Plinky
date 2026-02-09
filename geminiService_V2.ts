@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent } from "./types_V2";
+import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, RecapData, MixingPreset, PerformanceEvent, AppMode } from "./types_V2";
 import { PRESET_ZONES } from "./constants_V2";
 
 const getApiKey = () => {
@@ -380,4 +380,63 @@ export const generateMixSettings = async (
   });
 
   return JSON.parse(response.text.trim());
+};
+
+export const generateInstrumentOverlay = async (
+  name: string,
+  mode: AppMode
+): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const base = `Create a kid-friendly, hand-drawn instrument overlay based on: "${name}".`;
+  const style = `Use bold doodle lines, bright colors, and a transparent background if possible.`;
+  const instrumentHint =
+    mode === AppMode.DRUM
+      ? 'It should resemble a drum kit silhouette with playful shapes.'
+      : mode === AppMode.PIANO
+        ? 'It should resemble a playful piano silhouette.'
+        : mode === AppMode.HARP
+          ? 'It should resemble a whimsical harp silhouette.'
+          : 'It should resemble a playful xylophone silhouette.';
+  const prompt = `${base} ${instrumentHint} ${style} Center the instrument and leave padding around the edges.`;
+
+  const response = await withTimeout(
+    ai.models.generateImages({
+      model: "imagen-4.0-generate-001",
+      prompt,
+      config: { numberOfImages: 1 }
+    }),
+    20000,
+    "Instrument overlay generation"
+  );
+
+  const bytes = response?.generatedImages?.[0]?.image?.imageBytes;
+  if (!bytes) {
+    throw new Error("Instrument overlay image bytes missing.");
+  }
+  return `data:image/png;base64,${bytes}`;
+};
+
+export const generateInstrumentTexture = async (
+  name: string
+): Promise<string> => {
+  const ai = new GoogleGenAI({ apiKey: getApiKey() });
+  const prompt = `Create a seamless, kid-friendly texture inspired by "${name}". 
+  Use bold, playful shapes and high-contrast colors. 
+  Avoid text. Avoid dark or scary themes.`;
+
+  const response = await withTimeout(
+    ai.models.generateImages({
+      model: "imagen-4.0-generate-001",
+      prompt,
+      config: { numberOfImages: 1 }
+    }),
+    20000,
+    "Instrument texture generation"
+  );
+
+  const bytes = response?.generatedImages?.[0]?.image?.imageBytes;
+  if (!bytes) {
+    throw new Error("Instrument texture image bytes missing.");
+  }
+  return `data:image/png;base64,${bytes}`;
 };

@@ -304,7 +304,7 @@ const App: React.FC = () => {
               <div className="w-full max-w-[1200px] h-[260px] overflow-hidden pointer-events-none z-0 -mb-10 scale-105 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
-              <ExploreScreen onBack={() => setStep('pick')} onCreateCustom={handleCreateCustom} onPickPreset={handlePickPreset} />
+              <ExploreScreen onBack={() => setStep('pick')} onCreateCustom={handleCreateCustom} onOpenOverlay={handlePickPreset} />
             </div>
           )}
 

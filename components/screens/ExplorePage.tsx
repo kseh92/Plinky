@@ -4,12 +4,14 @@ import { AppMode } from '../../services/types';
 
 interface ExploreScreenProps {
   onBack: () => void;
+  // Use custom creation flow
   onCreateCustom: (name: string) => void;
-  onPickPreset: (mode: AppMode, name: string) => void;
+  // Preset buttons (optional)
+  onOpenOverlay?: (mode: AppMode, title: string) => void;
 }
 
 // --- ExploreScreen: Create custom instruments via Gemini ---
-export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCustom, onPickPreset }) => {
+export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCustom, onOpenOverlay }) => {
   const [customName, setCustomName] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -50,10 +52,15 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
     }
   };
 
-  const suggestions = [
-    { name: 'Piano with wings', icon: 'P', color: 'bg-blue-400', mode: AppMode.PIANO },
-    { name: 'Snake-shaped xylophone', icon: 'X', color: 'bg-emerald-400', mode: AppMode.XYLOPHONE },
-    { name: 'Neon-harp', icon: 'H', color: 'bg-purple-400', mode: AppMode.HARP }
+  const suggestions: Array<{
+    name: string;
+    icon: string;
+    color: string;
+    mode: AppMode;
+  }> = [
+    { name: 'Piano with wings', icon: '🎹🕊️', color: 'bg-blue-400', mode: AppMode.PIANO },
+    { name: 'Snake shaped xylophone', icon: '🐍🎵', color: 'bg-emerald-400', mode: AppMode.XYLOPHONE },
+    { name: 'Neon harp', icon: '🌈✨', color: 'bg-purple-400', mode: AppMode.HARP }
   ];
 
   return (
@@ -78,21 +85,12 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
         <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-white/20 rounded-full blur-[100px] animate-pulse"></div>
         
         <div className="relative z-10 flex flex-col items-center text-center max-w-3xl mx-auto">
-          <div className="w-24 h-24 bg-white/90 rounded-full flex items-center justify-center text-5xl shadow-2xl mb-8 group-hover:rotate-12 transition-transform duration-500">?챷</div>
           <h3 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-6" style={{ fontFamily: 'Fredoka One' }}>
             Magic Instrument Creator
           </h3>
           <p className="text-white/90 text-xl md:text-2xl font-bold leading-relaxed mb-10 drop-shadow-sm">
             Draw a silly shape and hear it sing! <br /> Try a <span className="text-yellow-200 font-black italic">Star Harp</span> or <span className="text-pink-200 font-black italic">Cloud Drums</span>.
           </p>
-
-          <div className="w-32 h-32 md:w-36 md:h-36 bg-white/90 rounded-full shadow-2xl mb-8 flex items-center justify-center border-4 border-white/80">
-            <svg viewBox="0 0 100 100" className="w-20 h-20 text-[#1e3a8a]">
-              <g fill="currentColor" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round">
-                {renderPreviewShape()}
-              </g>
-            </svg>
-          </div>
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col md:flex-row gap-5">
             <input 
@@ -107,7 +105,7 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
               disabled={!customName.trim()}
               className="bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-400 disabled:opacity-50 text-[#1e3a8a] px-12 py-7 rounded-full font-black text-2xl uppercase tracking-widest shadow-[0_10px_0_#ca8a04] hover:translate-y-1 active:translate-y-2 active:shadow-none transition-all flex items-center justify-center gap-4"
             >
-              <span>?뼀截?</span> DRAW
+              <span>🖋️</span> DRAW
             </button>
           </form>
         </div>
@@ -123,7 +121,7 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
             <button
               key={item.name}
               type="button"
-              onClick={() => onPickPreset(item.mode, item.name)}
+              onClick={() => onOpenOverlay?.(item.mode, item.name)}
               className={`${item.color} p-10 rounded-[3rem] shadow-[0_12px_0_rgba(0,0,0,0.1)] hover:-translate-y-2 hover:scale-105 transition-all flex flex-col items-center border-[10px] border-white/30 group`}
             >
               <span className="text-7xl mb-4 group-hover:animate-bounce">{item.icon}</span>
@@ -139,6 +137,5 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
     </div>
   );
 };
-
 
 

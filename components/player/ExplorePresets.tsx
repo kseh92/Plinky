@@ -523,14 +523,16 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
                     frameHits.add(item.note);
                   }
                 });
-                ctx.beginPath();
-                ctx.arc(tx * w, ty * h, 15, 0, 2 * Math.PI);
-                const isIndex = tip === indexTip;
-                ctx.fillStyle = isIndex ? 'rgba(239, 68, 68, 0.85)' : 'rgba(59, 130, 246, 0.85)';
-                ctx.fill();
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 4;
-                ctx.stroke();
+                if (mode !== AppMode.XYLOPHONE && mode !== AppMode.DRUM) {
+                  ctx.beginPath();
+                  ctx.arc(tx * w, ty * h, 15, 0, 2 * Math.PI);
+                  const isIndex = tip === indexTip;
+                  ctx.fillStyle = isIndex ? 'rgba(239, 68, 68, 0.85)' : 'rgba(59, 130, 246, 0.85)';
+                  ctx.fill();
+                  ctx.strokeStyle = '#fff';
+                  ctx.lineWidth = 4;
+                  ctx.stroke();
+                }
               });
             });
           }

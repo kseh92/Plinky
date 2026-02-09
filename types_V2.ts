@@ -1,6 +1,12 @@
 
 export type InstrumentType = 'Drum' | 'Piano' | 'Guitar' | 'Harp' | string;
 
+export enum AppMode {
+  PIANO = 'PIANO',
+  XYLOPHONE = 'XYLOPHONE',
+  HARP = 'HARP'
+}
+
 export interface PerformanceEvent {
   timestamp: number; // ms relative to recording start
   sound: string;

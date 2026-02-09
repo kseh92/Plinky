@@ -25,7 +25,7 @@ const DUMMY_GALLERY: GalleryItem[] = [
   { id: '6', title: 'Rainbow Strings', artist: '@Artiste', likes: 412, color: 'bg-yellow-400', instrument: '🎹', coverUrl: rainbowStrings },
 ];
 
-const GalleryPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+export const GalleryPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   return (
     <div className="w-full max-w-6xl mx-auto p-8 md:p-12 bg-white/40 backdrop-blur-xl rounded-[4rem] shadow-2xl border-[12px] border-white/60 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">

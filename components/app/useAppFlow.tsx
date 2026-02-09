@@ -1,17 +1,18 @@
 
 // src/app/useAppFlow.ts
 import * as React from 'react';
-import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent } from '../../services/types.ts';
+import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent, AppMode } from '../../services/types.ts';
 import { PRESET_ZONES } from '../../services/constants';
 import { generateBlueprint, scanDrawing, detectImageKeyword } from '../../services/geminiService';
 
 export type Step =
   | 'landing' | 'pick' | 'provide' | 'scan' | 'confirmScan' | 'play' | 'result' | 'blueprint'
-  | 'story' | 'gallery' | 'settings' | 'yourJam' | 'explore';
+  | 'story' | 'gallery' | 'settings' | 'yourJam' | 'explore' | 'explorePreset';
 
 export function useAppFlow() {
   const [step, setStep] = React.useState<Step>('landing');
   const [selectedType, setSelectedType] = React.useState<InstrumentType | null>(null);
+  const [exploreMode, setExploreMode] = React.useState<AppMode | null>(null);
   const [blueprint, setBlueprint] = React.useState<InstrumentBlueprint | null>(null);
   const [hitZones, setHitZones] = React.useState<HitZone[]>([]);
   const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
@@ -20,6 +21,7 @@ export function useAppFlow() {
   const [error, setError] = React.useState<string | null>(null);
   const [sessionStats, setSessionStats] = React.useState<SessionStats | null>(null);
   const [jacketKeyword, setJacketKeyword] = React.useState<string | null>(null);
+  const [showDebugHud, setShowDebugHud] = React.useState(false);
 
   const extractKeywordFromName = (name: string) => {
     const cleaned = name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ');
@@ -56,6 +58,13 @@ export function useAppFlow() {
     setSelectedType(name);
     setJacketKeyword(extractKeywordFromName(name));
     setStep('provide');
+  };
+
+  const handlePickPreset = (mode: AppMode, name: string) => {
+    setExploreMode(mode);
+    setSelectedType(name);
+    setJacketKeyword(extractKeywordFromName(name));
+    setStep('explorePreset');
   };
 
   const handleShowBlueprint = async () => {
@@ -153,13 +162,16 @@ export function useAppFlow() {
     setSelectedType(null);
     setCapturedImage(null);
     setJacketKeyword(null);
+    setExploreMode(null);
   };
 
   return {
     step, setStep,
-    selectedType, blueprint, hitZones, capturedImage, recording,
+    selectedType, blueprint, hitZones, capturedImage, recording, exploreMode,
     isLoading, error, sessionStats,
-    handlePick, handleCreateCustom,
+    showDebugHud, setShowDebugHud,
+    handlePick, handleCreateCustom, handlePickPreset,
+    handleOpenPreset: handlePickPreset,
     handleShowBlueprint, handleQuickStart,
     handleCapture, handleConfirmZones, handleFinishedPlaying,
     goHome

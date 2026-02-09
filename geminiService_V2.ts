@@ -74,7 +74,7 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
     Provide accurate bounding boxes as percentages (0-100) of the image. Return JSON.`;
   const drumPrompt = `Analyze this hand-drawn drum kit. Identify kick, snare, toms, hi-hat, and crash.
     Provide accurate bounding boxes as percentages (0-100) of the image. Return JSON.`;
-  const harpPrompt = `Analyze this hand-drawn harp. Identify individual vertical strings (C, D, E, F, G, A, B).
+  const harpPrompt = `Analyze this hand-drawn harp. Identify strings from left to right as individual vertical strings (C, D, E, F, G, A, B).
     Strings should be vertical boxes. Provide bounding boxes as percentages (0-100) of the image. Return JSON.`;
   let prompt = instrument === 'Piano' ? pianoPrompt : drumPrompt;
   if (instrument === 'Harp') prompt = harpPrompt;

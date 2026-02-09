@@ -136,7 +136,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <main className={`flex-1 w-full flex flex-col items-center ${isSubPage ? 'pt-40 pb-32' : ''}`}>
+      <main className={`flex-1 w-full flex flex-col items-center ${isSubPage ? 'pt-20 pb-32' : ''}`}>
         {/* Red Monster Positioning: Default peeking behavior for generic scan/play/result sub-pages */}
         {isSubPage && !['story', 'gallery', 'yourJam', 'settings', 'pick', 'provide', 'explore', 'landing', 'result'].includes(step) && (
           <div className="w-full flex justify-center mb-0 mt-4 animate-in fade-in slide-in-from-top-4 duration-700 relative z-0">
@@ -158,7 +158,7 @@ const App: React.FC = () => {
           {step === 'landing' && <LandingScreen onStart={() => setStep('pick')} />}
 
           {step === 'pick' && (
-            <div className="flex flex-col items-center w-full min-h-[calc(100vh-200px)] justify-start pb-48">
+            <div className="flex flex-col items-center w-full min-h-[calc(100vh-200px)] justify-start pb-48 mt-12">
               <div className="relative w-full max-w-4xl py-12">
                 <h2 className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 top-0 text-4xl md:text-6xl font-black text-[#1e3a8a] uppercase tracking-tighter z-20 px-4 whitespace-nowrap" style={{ fontFamily: 'Fredoka One' }}>
                   Pick Your Instrument

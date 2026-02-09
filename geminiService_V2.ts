@@ -131,13 +131,34 @@ export const scanDrawing = async (instrument: InstrumentType, base64Image: strin
   if (instrument === 'Drum') {
     const preset = PRESET_ZONES['Drum'];
     if (preset?.length) {
-      const shuffled = [...preset];
+      const crashes = preset.filter((p) => p.sound.includes('crash'));
+      const others = preset.filter((p) => !p.sound.includes('crash'));
+      const shuffled = [...others];
       for (let i = shuffled.length - 1; i > 0; i -= 1) {
         const j = Math.floor(Math.random() * (i + 1));
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
       }
+      const withCrash = zones.length > 4 && crashes.length >= 2;
+      const sortedByTop = [...zones].sort((a, b) => a.y - b.y || a.x - b.x);
+      const topCandidates = sortedByTop.slice(0, Math.min(3, sortedByTop.length));
+      let leftIdx = -1;
+      let rightIdx = -1;
+      if (withCrash && topCandidates.length) {
+        leftIdx = topCandidates.reduce((acc, z) => (z.x < topCandidates[acc].x ? topCandidates.indexOf(z) : acc), 0);
+        rightIdx = topCandidates.reduce((acc, z) => (z.x > topCandidates[acc].x ? topCandidates.indexOf(z) : acc), 0);
+      }
+      let otherIdx = 0;
       return zones.map((zone: HitZone, idx: number) => {
-        const sound = shuffled[idx % shuffled.length];
+        if (withCrash && topCandidates[leftIdx] === zone) {
+          const crash = crashes.find((c) => c.sound === 'crash_l') || crashes[0];
+          return { ...zone, sound: crash.sound, label: crash.label };
+        }
+        if (withCrash && topCandidates[rightIdx] === zone) {
+          const crash = crashes.find((c) => c.sound === 'crash_r') || crashes[1];
+          return { ...zone, sound: crash.sound, label: crash.label };
+        }
+        const sound = shuffled[otherIdx % shuffled.length];
+        otherIdx += 1;
         return { ...zone, sound: sound.sound, label: sound.label };
       });
     }

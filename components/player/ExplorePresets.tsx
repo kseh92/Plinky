@@ -716,17 +716,9 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
               const lastHit = lastHitTimeRef.current.get(bar.note) || 0;
               const active = (now - lastHit) < 150;
                 ctx.save();
-                if (bar.note === 'b4') {
-                  ctx.beginPath();
-                  ctx.moveTo(bx, by);
-                  ctx.lineTo(bx, by + bh);
-                  ctx.lineTo(bx + bw, by);
-                  ctx.closePath();
-                  ctx.clip();
-                }
                 ctx.globalAlpha = 0.6;
                 ctx.fillStyle = bar.color;
-                const cornerRadius = bar.note === 'b4' ? Math.min(bw, bh) * 0.45 : Math.min(bw, bh) * 0.28;
+                const cornerRadius = Math.min(bw, bh) * 0.28;
                 ctx.beginPath();
                 if (typeof (ctx as CanvasRenderingContext2D & { roundRect?: Function }).roundRect === 'function') {
                   ctx.roundRect(bx, by, bw, bh, cornerRadius);

@@ -49,6 +49,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
   const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
   const audioReadyRef = useRef(false);
   const recordingStartedRef = useRef(false);
+  const [isAudioReady, setIsAudioReady] = useState(false);
   const pointerDownRef = useRef(false);
   const currentTouchNoteRef = useRef<string | null>(null);
   const firstTouchTimeRef = useRef<number | null>(null);
@@ -77,6 +78,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
     await toneService.startRecording();
     recordingStartedRef.current = true;
     audioReadyRef.current = true;
+    setIsAudioReady(true);
   };
 
   const isCustomDraw = !presetOptions.some((p) => p.name.toLowerCase() === (presetName || '').toLowerCase());
@@ -572,7 +574,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
             });
           }
 
-          if (frameHits.size > 0 && !recordingStartedRef.current) {
+          if (frameHits.size > 0 && audioReadyRef.current && !recordingStartedRef.current) {
             toneService.startRecording();
             recordingStartedRef.current = true;
           }
@@ -581,6 +583,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
             if (!activeHitsRef.current.has(note)) {
               const found = list.find((k) => k.note === note);
               if (found) {
+                if (!audioReadyRef.current) return;
                 if (mode === AppMode.HARP) {
                   const lastHit = lastHitTimeRef.current.get(note) || 0;
                   if (now - lastHit >= 70) {
@@ -892,6 +895,20 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
         <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#1e3a8a]/80 backdrop-blur-xl">
           <div className="w-20 h-20 border-8 border-white border-t-transparent rounded-full animate-spin mb-8" />
           <p className="text-white font-black text-2xl uppercase tracking-[0.3em] animate-pulse">Summoning Magic...</p>
+        </div>
+      )}
+
+      {!isLoading && !isAudioReady && (
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm">
+          <button
+            onClick={enableAudio}
+            className="px-12 py-6 bg-white/90 text-[#1e3a8a] rounded-full font-black text-2xl uppercase tracking-widest shadow-[0_10px_0_rgba(0,0,0,0.25)] hover:translate-y-1 active:shadow-none transition-all"
+          >
+            Tap To Enable Sound
+          </button>
+          <p className="mt-4 text-white/80 font-black uppercase tracking-[0.3em] text-xs">
+            Audio needs one tap to start
+          </p>
         </div>
       )}
 

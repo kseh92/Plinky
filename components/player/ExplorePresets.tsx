@@ -37,6 +37,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
   const overlayImageRef = useRef<HTMLImageElement | null>(null);
   const [textureReady, setTextureReady] = useState(false);
   const textureImageRef = useRef<HTMLImageElement | null>(null);
+  const [zoneScale, setZoneScale] = useState(1.0);
   const roiSupportedRef = useRef<boolean | null>(null);
   const loadStartRef = useRef<number | null>(null);
 
@@ -508,6 +509,42 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
           const frameHits = new Set<string>();
           const now = Date.now();
 
+          const list =
+            mode === AppMode.PIANO
+              ? PIANO_KEYS
+              : mode === AppMode.XYLOPHONE
+                ? XYLOPHONE_BARS
+                : mode === AppMode.HARP
+                  ? HARP_STRINGS
+                  : DRUM_PADS;
+
+          const bounds = list.reduce(
+            (acc, item) => {
+              acc.minX = Math.min(acc.minX, item.rect.x);
+              acc.minY = Math.min(acc.minY, item.rect.y);
+              acc.maxX = Math.max(acc.maxX, item.rect.x + item.rect.w);
+              acc.maxY = Math.max(acc.maxY, item.rect.y + item.rect.h);
+              return acc;
+            },
+            { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+          );
+          const centerX = (bounds.minX + bounds.maxX) / 2;
+          const centerY = (bounds.minY + bounds.maxY) / 2;
+
+          const xOffset = mode === AppMode.XYLOPHONE ? 0.06 * zoneScale : 0;
+          const scaleRect = (rect: { x: number; y: number; w: number; h: number }) => {
+            const scaledW = rect.w * zoneScale;
+            const scaledH = rect.h * zoneScale;
+            const scaledX = centerX + (rect.x - centerX) * zoneScale;
+            const scaledY = centerY + (rect.y - centerY) * zoneScale;
+            return {
+              x: scaledX + xOffset,
+              y: scaledY,
+              w: scaledW,
+              h: scaledH
+            };
+          };
+
           if (results.landmarks) {
             results.landmarks.forEach((landmarks) => {
               const indexTip = landmarks[8];
@@ -515,29 +552,21 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
               [indexTip, thumbTip].forEach((tip) => {
                 const tx = tip.x;
                 const ty = tip.y;
-                const checkList = mode === AppMode.PIANO
-                  ? PIANO_KEYS
-                  : mode === AppMode.XYLOPHONE
-                    ? XYLOPHONE_BARS
-                    : mode === AppMode.HARP
-                      ? HARP_STRINGS
-                      : DRUM_PADS;
-                checkList.forEach((item) => {
-                  if (tx >= item.rect.x && tx <= item.rect.x + item.rect.w &&
-                      ty >= item.rect.y && ty <= item.rect.y + item.rect.h) {
+                list.forEach((item) => {
+                  const rect = scaleRect(item.rect);
+                  if (tx >= rect.x && tx <= rect.x + rect.w &&
+                      ty >= rect.y && ty <= rect.y + rect.h) {
                     frameHits.add(item.note);
                   }
                 });
-                if (mode !== AppMode.XYLOPHONE && mode !== AppMode.DRUM) {
-                  ctx.beginPath();
-                  ctx.arc(tx * w, ty * h, 15, 0, 2 * Math.PI);
-                  const isIndex = tip === indexTip;
-                  ctx.fillStyle = isIndex ? 'rgba(239, 68, 68, 0.85)' : 'rgba(59, 130, 246, 0.85)';
-                  ctx.fill();
-                  ctx.strokeStyle = '#fff';
-                  ctx.lineWidth = 4;
-                  ctx.stroke();
-                }
+                ctx.beginPath();
+                ctx.arc(tx * w, ty * h, 15, 0, 2 * Math.PI);
+                const isIndex = tip === indexTip;
+                ctx.fillStyle = isIndex ? 'rgba(239, 68, 68, 0.85)' : 'rgba(59, 130, 246, 0.85)';
+                ctx.fill();
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 4;
+                ctx.stroke();
               });
             });
           }
@@ -549,14 +578,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
 
           frameHits.forEach((note) => {
             if (!activeHitsRef.current.has(note)) {
-              const searchList = mode === AppMode.PIANO
-                ? PIANO_KEYS
-                : mode === AppMode.XYLOPHONE
-                  ? XYLOPHONE_BARS
-                  : mode === AppMode.HARP
-                    ? HARP_STRINGS
-                    : DRUM_PADS;
-              const found = searchList.find((k) => k.note === note);
+              const found = list.find((k) => k.note === note);
               if (found) {
                 if (mode === AppMode.HARP) {
                   const lastHit = lastHitTimeRef.current.get(note) || 0;
@@ -597,13 +619,29 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
 
           if (mode === AppMode.PIANO) {
             const isAnyActive = frameHits.size > 0;
-            drawDoodleWing(ctx, w * 0.18, h * 0.6, -1, isAnyActive, w);
-            drawDoodleWing(ctx, w * 0.82, h * 0.6, 1, isAnyActive, w);
+            const scaledBounds = list.reduce(
+              (acc, item) => {
+                const rect = scaleRect(item.rect);
+                acc.minX = Math.min(acc.minX, rect.x);
+                acc.minY = Math.min(acc.minY, rect.y);
+                acc.maxX = Math.max(acc.maxX, rect.x + rect.w);
+                acc.maxY = Math.max(acc.maxY, rect.y + rect.h);
+                return acc;
+              },
+              { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+            );
+            const wingY = (scaledBounds.minY + scaledBounds.maxY) / 2 * h;
+            const wingW = (scaledBounds.maxX - scaledBounds.minX) * w;
+            const leftX = scaledBounds.minX * w - wingW * 0.05;
+            const rightX = scaledBounds.maxX * w + wingW * 0.05;
+            drawDoodleWing(ctx, leftX, wingY, -1, isAnyActive, wingW);
+            drawDoodleWing(ctx, rightX, wingY, 1, isAnyActive, wingW);
             PIANO_KEYS.forEach((key) => {
-              const kx = key.rect.x * w;
-              const ky = key.rect.y * h;
-              const kw = key.rect.w * w;
-              const kh = key.rect.h * h;
+              const rect = scaleRect(key.rect);
+              const kx = rect.x * w;
+              const ky = rect.y * h;
+              const kw = rect.w * w;
+              const kh = rect.h * h;
               const isActive = frameHits.has(key.note);
               ctx.fillStyle = isActive ? key.color : (key.isBlack ? '#000' : 'rgba(255,255,255,0.3)');
               ctx.fillRect(kx, ky, kw, kh);
@@ -613,10 +651,11 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
           } else if (mode === AppMode.XYLOPHONE) {
             const drawSnakeHead = () => {
               const firstBar = XYLOPHONE_BARS[0];
-              const barLeftX = firstBar.rect.x * w;
-              const barCenterY = (firstBar.rect.y + firstBar.rect.h / 2) * h;
-              const s = 0.22;
-              const headX = barLeftX - (587.5 * s) + 10;
+              const firstRect = scaleRect(firstBar.rect);
+              const barLeftX = firstRect.x * w;
+              const barCenterY = (firstRect.y + firstRect.h / 2) * h;
+              const s = 0.22 * zoneScale;
+              const headX = barLeftX - (587.5 * s) + 10 - (w * 0.03);
               const headY = barCenterY + Math.sin(now / 200) * 12;
               ctx.save();
               ctx.globalAlpha = 0.6;
@@ -666,8 +705,9 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
             const drawSnakeBody = () => {
               ctx.save();
               ctx.beginPath();
-              const startX = (XYLOPHONE_BARS[0].rect.x - 0.05) * w;
-              const startY = (XYLOPHONE_BARS[0].rect.y + XYLOPHONE_BARS[0].rect.h / 2) * h;
+              const firstRect = scaleRect(XYLOPHONE_BARS[0].rect);
+              const startX = (firstRect.x - 0.05 * zoneScale) * w;
+              const startY = (firstRect.y + firstRect.h / 2) * h;
               ctx.moveTo(startX, startY);
               XYLOPHONE_BARS.forEach((bar) => {
                 const bx = (bar.rect.x + bar.rect.w / 2) * w;
@@ -675,15 +715,16 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
                 ctx.lineTo(bx, by);
               });
               ctx.strokeStyle = 'rgba(255,255,255,0.02)';
-              ctx.lineWidth = 110;
+              ctx.lineWidth = 110 * zoneScale;
               ctx.stroke();
               XYLOPHONE_BARS.forEach((bar) => {
-                const bx = bar.rect.x * w;
-                const by = bar.rect.y * h;
-                const bw = bar.rect.w * w;
-                const bh = bar.rect.h * h;
-                const lastHit = lastHitTimeRef.current.get(bar.note) || 0;
-                const active = (now - lastHit) < 150;
+              const rect = scaleRect(bar.rect);
+              const bx = rect.x * w;
+              const by = rect.y * h;
+              const bw = rect.w * w;
+              const bh = rect.h * h;
+              const lastHit = lastHitTimeRef.current.get(bar.note) || 0;
+              const active = (now - lastHit) < 150;
                 ctx.save();
                 if (bar.note === 'b4') {
                   ctx.beginPath();
@@ -706,7 +747,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
                 if (active) {
                   ctx.globalAlpha = 1.0;
                   ctx.strokeStyle = 'white';
-                  ctx.lineWidth = 4;
+                  ctx.lineWidth = 4 * zoneScale;
                   ctx.stroke();
                 }
                 ctx.restore();
@@ -724,18 +765,19 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
               '#34d399': '#B6FFDA'
             };
             HARP_STRINGS.forEach((str) => {
-              const sx = (str.rect.x + str.rect.w / 2) * w;
+              const rect = scaleRect(str.rect);
+              const sx = (rect.x + rect.w / 2) * w;
               const isActive = frameHits.has(str.note);
               const vibrate = isActive ? Math.sin(Date.now() / 18) * 10 : 0;
               ctx.save();
               ctx.beginPath();
-              ctx.moveTo(sx + vibrate, str.rect.y * h);
-              ctx.lineTo(sx + vibrate, (str.rect.y + str.rect.h) * h);
+              ctx.moveTo(sx + vibrate, rect.y * h);
+              ctx.lineTo(sx + vibrate, (rect.y + rect.h) * h);
               const neonColor = neonMap[str.color] || str.color;
               // Outer neon glow
-              ctx.lineWidth = isActive ? 12 : 8;
+              ctx.lineWidth = (isActive ? 12 : 8) * zoneScale;
               ctx.strokeStyle = neonColor;
-              ctx.shadowBlur = isActive ? 36 : 24;
+              ctx.shadowBlur = (isActive ? 36 : 24) * zoneScale;
               ctx.shadowColor = neonColor;
               if (!isActive) {
                 ctx.globalAlpha = 0.9;
@@ -744,7 +786,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
               // Bright core
               ctx.shadowBlur = 0;
               ctx.globalAlpha = 1;
-              ctx.lineWidth = isActive ? 4 : 3;
+              ctx.lineWidth = (isActive ? 4 : 3) * zoneScale;
               ctx.strokeStyle = '#ffffff';
               ctx.stroke();
               ctx.restore();
@@ -752,10 +794,11 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
           } else if (mode === AppMode.DRUM) {
             const drawDrumPads = () => {
               DRUM_PADS.forEach((pad) => {
-                const px = pad.rect.x * w;
-                const py = pad.rect.y * h;
-                const pw = pad.rect.w * w;
-                const ph = pad.rect.h * h;
+                const rect = scaleRect(pad.rect);
+                const px = rect.x * w;
+                const py = rect.y * h;
+                const pw = rect.w * w;
+                const ph = rect.h * h;
                 const isActive = frameHits.has(pad.note);
                 ctx.save();
                 ctx.beginPath();
@@ -764,11 +807,11 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
                 if (pad.note.includes('crash')) {
                   ctx.fillStyle = isActive ? 'rgba(252, 211, 77, 0.85)' : 'rgba(251, 191, 36, 0.55)';
                 }
-                ctx.shadowBlur = isActive ? 20 : 10;
+                ctx.shadowBlur = (isActive ? 20 : 10) * zoneScale;
                 ctx.shadowColor = pad.color;
                 ctx.fill();
                 ctx.strokeStyle = '#fff';
-                ctx.lineWidth = isActive ? 8 : 6;
+                ctx.lineWidth = (isActive ? 8 : 6) * zoneScale;
                 ctx.stroke();
                 ctx.restore();
               });
@@ -814,7 +857,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
     };
     render();
     return () => cancelAnimationFrame(animationId);
-  }, [landmarker, mode, spawnConfetti]);
+  }, [landmarker, mode, spawnConfetti, zoneScale]);
 
   return (
     <div
@@ -898,6 +941,42 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
       >
         Finish Session
       </button>
+
+      <div className="absolute right-8 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center gap-6 bg-white/20 backdrop-blur-md p-8 rounded-[3rem] border-[6px] border-white/40 shadow-2xl">
+        <div className="flex flex-col items-center gap-2">
+          <span className="text-white font-black uppercase tracking-widest text-[10px]">Instrument Size</span>
+          <span className="text-white font-black text-2xl">{Math.round(zoneScale * 100)}%</span>
+        </div>
+        <div className="h-48 flex items-center">
+          <input
+            type="range"
+            min="0.5"
+            max="2.5"
+            step="0.1"
+            value={zoneScale}
+            onChange={(e) => setZoneScale(parseFloat(e.target.value))}
+            className="h-40 w-4 appearance-none bg-white/30 rounded-full outline-none cursor-pointer"
+            style={{
+              WebkitAppearance: 'slider-vertical',
+              accentColor: '#FF6B6B'
+            }}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setZoneScale((prev) => Math.min(2.5, prev + 0.2))}
+            className="w-10 h-10 bg-white/40 hover:bg-white/60 rounded-full text-white font-black text-xl transition-all shadow-md"
+          >
+            +
+          </button>
+          <button
+            onClick={() => setZoneScale((prev) => Math.max(0.5, prev - 0.2))}
+            className="w-10 h-10 bg-white/40 hover:bg-white/60 rounded-full text-white font-black text-xl transition-all shadow-md"
+          >
+            -
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

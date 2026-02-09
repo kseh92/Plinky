@@ -33,6 +33,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
   const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
   const audioReadyRef = useRef(false);
   const pointerDownRef = useRef(false);
+  const roiSupportedRef = useRef<boolean | null>(null);
 
   useEffect(() => {
     const initMediaPipe = async () => {
@@ -204,10 +205,21 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
         const roi = aspect >= 1
           ? { left: (1 - (vh / vw)) / 2, top: 0, right: 1 - (1 - (vh / vw)) / 2, bottom: 1 }
           : { left: 0, top: (1 - (vw / vh)) / 2, right: 1, bottom: 1 - (1 - (vw / vh)) / 2 };
-        const results = landmarker.detectForVideo(videoRef.current, performance.now(), {
-          regionOfInterest: roi,
-          rotationDegrees: 0
-        });
+        let results;
+        if (roiSupportedRef.current !== false) {
+          try {
+            results = landmarker.detectForVideo(videoRef.current, performance.now(), {
+              regionOfInterest: roi,
+              rotationDegrees: 0
+            });
+            roiSupportedRef.current = true;
+          } catch (err) {
+            roiSupportedRef.current = false;
+            results = landmarker.detectForVideo(videoRef.current, performance.now());
+          }
+        } else {
+          results = landmarker.detectForVideo(videoRef.current, performance.now());
+        }
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
           canvasRef.current.width = vw;
@@ -233,11 +245,12 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
                   }
                 });
                 ctx.beginPath();
-                ctx.arc(tx * w, ty * h, 10, 0, 2 * Math.PI);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.arc(tx * w, ty * h, 15, 0, 2 * Math.PI);
+                const isIndex = tip === indexTip;
+                ctx.fillStyle = isIndex ? 'rgba(239, 68, 68, 0.85)' : 'rgba(59, 130, 246, 0.85)';
                 ctx.fill();
-                ctx.strokeStyle = '#3b82f6';
-                ctx.lineWidth = 2;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 4;
                 ctx.stroke();
               });
             });
@@ -249,12 +262,18 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
               const found = searchList.find((k) => k.note === note);
               if (found) {
                 const prefix = mode === AppMode.HARP ? 'neon:' : mode === AppMode.XYLOPHONE ? 'xylo:' : '';
-                toneService.play(`${prefix}${note}`);
+                toneService.startNote(`${prefix}${note}`);
                 noteCountRef.current++;
                 uniqueNotesRef.current.add(note);
                 spawnConfetti(found.rect.x + found.rect.w / 2, found.rect.y + found.rect.h / 2, found.color);
                 lastHitTimeRef.current.set(note, now);
               }
+            }
+          });
+          activeHitsRef.current.forEach((note) => {
+            if (!frameHits.has(note)) {
+              const prefix = mode === AppMode.HARP ? 'neon:' : mode === AppMode.XYLOPHONE ? 'xylo:' : '';
+              toneService.stopNote(`${prefix}${note}`);
             }
           });
           activeHitsRef.current = frameHits;
@@ -349,17 +368,9 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit }) => {
                 const lastHit = lastHitTimeRef.current.get(bar.note) || 0;
                 const active = (now - lastHit) < 150;
                 ctx.save();
-                if (bar.note === 'b4') {
-                  ctx.beginPath();
-                  ctx.moveTo(bx, by);
-                  ctx.lineTo(bx, by + bh);
-                  ctx.lineTo(bx + bw, by);
-                  ctx.closePath();
-                  ctx.clip();
-                }
                 ctx.globalAlpha = 0.6;
                 ctx.fillStyle = bar.color;
-                const cornerRadius = bar.note === 'b4' ? Math.min(bw, bh) * 0.45 : Math.min(bw, bh) * 0.28;
+                const cornerRadius = Math.min(bw, bh) * 0.28;
                 ctx.beginPath();
                 ctx.roundRect(bx, by, bw, bh, cornerRadius);
                 ctx.fill();

@@ -147,6 +147,9 @@ const App: React.FC = () => {
 
           {step === 'pick' && (
             <div className="flex flex-col items-center w-full min-h-[calc(100vh-200px)] justify-start pb-48">
+              <h2 className="text-4xl md:text-6xl font-black text-white drop-shadow-xl uppercase tracking-tighter text-center mb-8" style={{ fontFamily: 'Fredoka One' }}>
+                Pick Your Instrument
+              </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 w-full max-w-4xl py-12 animate-in slide-in-from-bottom-10 duration-700 relative z-50 grid-auto-rows-fr">
                 {INSTRUMENTS.map((inst) => (
                   <button

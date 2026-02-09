@@ -47,7 +47,9 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
   const activeHitsRef = useRef<Set<string>>(new Set());
   const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
   const audioReadyRef = useRef(false);
+  const recordingStartedRef = useRef(false);
   const pointerDownRef = useRef(false);
+  const currentTouchNoteRef = useRef<string | null>(null);
   const firstTouchTimeRef = useRef<number | null>(null);
 
   const presetOptions = [
@@ -72,6 +74,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
     if (audioReadyRef.current) return;
     await toneService.init();
     await toneService.startRecording();
+    recordingStartedRef.current = true;
     audioReadyRef.current = true;
   };
 
@@ -442,9 +445,13 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
       ty >= item.rect.y && ty <= item.rect.y + item.rect.h
     );
 
-    if (!hit) {
-      return;
+    const nextNote = hit ? withPrefix(mode, hit.note) : null;
+    const prevNote = currentTouchNoteRef.current;
+    if (prevNote && prevNote !== nextNote) {
+      toneService.stopNote(prevNote);
+      currentTouchNoteRef.current = null;
     }
+    if (!hit) return;
 
     const now = Date.now();
     const lastTime = lastTouchTimeRef.current.get(hit.note) || 0;
@@ -452,10 +459,8 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
     lastTouchTimeRef.current.set(hit.note, now);
 
     const soundId = withPrefix(mode, hit.note);
-    toneService.play(soundId);
-    if (mode === AppMode.HARP) {
-      window.setTimeout(() => toneService.release(soundId), 200);
-    }
+    toneService.startNote(soundId);
+    currentTouchNoteRef.current = soundId;
     noteCountRef.current++;
     uniqueNotesRef.current.add(hit.note);
     spawnConfetti(hit.rect.x + hit.rect.w / 2, hit.rect.y + hit.rect.h / 2, hit.color);
@@ -535,6 +540,11 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
                 }
               });
             });
+          }
+
+          if (frameHits.size > 0 && !recordingStartedRef.current) {
+            toneService.startRecording();
+            recordingStartedRef.current = true;
           }
 
           frameHits.forEach((note) => {
@@ -826,8 +836,20 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
           if (!audioReadyRef.current) return;
           handleTouchPlay(e.clientX, e.clientY);
         }}
-        onPointerUp={() => { pointerDownRef.current = false; }}
-        onPointerLeave={() => { pointerDownRef.current = false; }}
+        onPointerUp={() => {
+          pointerDownRef.current = false;
+          if (currentTouchNoteRef.current) {
+            toneService.stopNote(currentTouchNoteRef.current);
+            currentTouchNoteRef.current = null;
+          }
+        }}
+        onPointerLeave={() => {
+          pointerDownRef.current = false;
+          if (currentTouchNoteRef.current) {
+            toneService.stopNote(currentTouchNoteRef.current);
+            currentTouchNoteRef.current = null;
+          }
+        }}
       />
 
       {isLoading && (
@@ -881,4 +903,3 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
 };
 
 export default ExplorePresets;
-

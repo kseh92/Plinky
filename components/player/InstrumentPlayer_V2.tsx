@@ -57,6 +57,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
   const [isLoading, setIsLoading] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
   const [isAudioLoading, setIsAudioLoading] = useState(false);
+  const [showMascot, setShowMascot] = useState(true);
   const [zoneScale, setZoneScale] = useState(1.0); 
   
   const noteCountRef = useRef(0);
@@ -598,9 +599,18 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
         </div>
       )}
 
-      <div className="absolute left-[2%] bottom-[-5%] w-[150px] md:w-[250px] z-20 pointer-events-none animate-float">
-         <MascotPlayer className="w-full h-full opacity-80 drop-shadow-2xl" />
-      </div>
+      {showMascot && (
+        <div className="absolute left-[2%] bottom-[-5%] w-[150px] md:w-[250px] z-20 pointer-events-none animate-float">
+           <MascotPlayer className="w-full h-full opacity-80 drop-shadow-2xl" />
+        </div>
+      )}
+      <button
+        onClick={() => setShowMascot((prev) => !prev)}
+        className="absolute left-4 bottom-6 z-30 bg-white/80 hover:bg-white text-[#1e3a8a] border-2 border-white/90 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-md transition-all"
+        title={showMascot ? 'Hide mascot' : 'Show mascot'}
+      >
+        {showMascot ? 'Hide Buddy' : 'Show Buddy'}
+      </button>
 
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/90 text-blue-600 font-bold text-2xl z-[100]">

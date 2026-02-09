@@ -72,6 +72,10 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
   const uniqueNotesRef = useRef<Set<string>>(new Set());
   const activeHitsRef = useRef<Set<string>>(new Set());
   const particlesRef = useRef<Particle[]>([]);
+  const lastParticleTimeRef = useRef(0);
+  const lastFrameTimeRef = useRef<number | null>(null);
+  const fpsSamplesRef = useRef<number[]>([]);
+  const lowPerfRef = useRef(false);
   const pointerDownRef = useRef(false);
   const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
   const roiSupportedRef = useRef<boolean | null>(null);
@@ -160,19 +164,29 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
   };
 
   const spawnParticles = (x: number, y: number, color: string) => {
+    if (lowPerfRef.current) return;
+    const now = performance.now();
+    if (now - lastParticleTimeRef.current < 80) return; // throttle for perf
+    lastParticleTimeRef.current = now;
+
     const symbols = ['⭐', '♪', '♫', '♬', '✨', '🎈'];
-    for (let i = 0; i < 8; i++) {
+    const maxParticles = 120;
+    const perHit = 4;
+    if (particlesRef.current.length >= maxParticles) return;
+
+    for (let i = 0; i < perHit; i++) {
+      if (particlesRef.current.length >= maxParticles) break;
       particlesRef.current.push({
         x,
         y,
-        vx: (Math.random() - 0.5) * 20,
-        vy: (Math.random() * -15) - 5,
+        vx: (Math.random() - 0.5) * 14,
+        vy: (Math.random() * -12) - 4,
         life: 1.0,
         color,
-        size: Math.random() * 20 + 15,
+        size: Math.random() * 16 + 12,
         type: symbols[Math.floor(Math.random() * symbols.length)],
         rotation: Math.random() * Math.PI * 2,
-        rotationSpeed: (Math.random() - 0.5) * 0.2
+        rotationSpeed: (Math.random() - 0.5) * 0.15
       });
     }
   };
@@ -402,6 +416,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
 
     let animationId: number;
     const render = () => {
+      const frameNow = performance.now();
       if (videoRef.current && canvasRef.current && videoRef.current.readyState === 4) {
         const vw = videoRef.current.videoWidth;
         const vh = videoRef.current.videoHeight;
@@ -416,7 +431,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
         let results;
         if (roiSupportedRef.current !== false) {
           try {
-            results = landmarker.detectForVideo(videoRef.current, performance.now(), {
+            results = landmarker.detectForVideo(videoRef.current, frameNow, {
               regionOfInterest: roi,
               rotationDegrees: 0
             });
@@ -426,10 +441,10 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
             if (showDebugHud) {
               console.warn('[InstrumentPlayer] ROI not supported, retrying without ROI.', err);
             }
-            results = landmarker.detectForVideo(videoRef.current, performance.now());
+            results = landmarker.detectForVideo(videoRef.current, frameNow);
           }
         } else {
-          results = landmarker.detectForVideo(videoRef.current, performance.now());
+          results = landmarker.detectForVideo(videoRef.current, frameNow);
         }
         const landmarksCount = results?.landmarks ? results.landmarks.length : 0;
         const ctx = canvasRef.current.getContext('2d');
@@ -621,22 +636,44 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
             ctx.stroke();
           });
 
-          particlesRef.current = particlesRef.current.filter(p => {
-            p.x += p.vx; p.y += p.vy; p.vy += 0.8; p.vx *= 0.98; p.rotation += p.rotationSpeed; p.life -= 0.04;
-            if (p.life > 0) {
-              ctx.save();
-              ctx.translate(p.x, p.y); ctx.rotate(p.rotation);
-              ctx.globalAlpha = p.life; ctx.shadowBlur = 10; ctx.shadowColor = p.color;
-              ctx.fillStyle = p.color; ctx.font = `${p.size * p.life}px Arial`;
-              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-              ctx.fillText(p.type, 0, 0);
-              ctx.restore();
-              return true;
-            }
-            return false;
-          });
+          if (lowPerfRef.current) {
+            particlesRef.current = [];
+          } else {
+            particlesRef.current = particlesRef.current.filter(p => {
+              p.x += p.vx; p.y += p.vy; p.vy += 0.7; p.vx *= 0.98; p.rotation += p.rotationSpeed; p.life -= 0.06;
+              if (p.life > 0) {
+                ctx.save();
+                ctx.translate(p.x, p.y); ctx.rotate(p.rotation);
+                ctx.globalAlpha = p.life; ctx.shadowBlur = 10; ctx.shadowColor = p.color;
+                ctx.fillStyle = p.color; ctx.font = `${p.size * p.life}px Arial`;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillText(p.type, 0, 0);
+                ctx.restore();
+                return true;
+              }
+              return false;
+            });
+          }
         }
       }
+      if (lastFrameTimeRef.current !== null) {
+        const dt = frameNow - lastFrameTimeRef.current;
+        if (dt > 0) {
+          const fps = 1000 / dt;
+          const samples = fpsSamplesRef.current;
+          samples.push(fps);
+          if (samples.length >= 20) {
+            const avg = samples.reduce((sum, v) => sum + v, 0) / samples.length;
+            fpsSamplesRef.current = [];
+            if (!lowPerfRef.current && avg < 24) {
+              lowPerfRef.current = true;
+            } else if (lowPerfRef.current && avg > 30) {
+              lowPerfRef.current = false;
+            }
+          }
+        }
+      }
+      lastFrameTimeRef.current = frameNow;
       animationId = requestAnimationFrame(render);
     };
     render();

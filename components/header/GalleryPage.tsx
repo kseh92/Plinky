@@ -1,10 +1,4 @@
 import React from 'react';
-import cosmicSquare from '../../assets/cosmic_square.png';
-import marshmallowKeys from '../../assets/marshmallow_keys.png';
-import neonHarp from '../../assets/neon_harp.png';
-import skyblueJams from '../../assets/skyblue_james.png';
-import monsterBeats from '../../assets/monster_beats.png';
-import rainbowStrings from '../../assets/rainbow_strings.png';
 
 interface GalleryItem {
   id: string;
@@ -17,12 +11,12 @@ interface GalleryItem {
 }
 
 const DUMMY_GALLERY: GalleryItem[] = [
-  { id: '1', title: 'Cosmic Snare', artist: '@LittleMozart', likes: 245, color: 'bg-indigo-400', instrument: '🥁', coverUrl: cosmicSquare },
-  { id: '2', title: 'Marshmallow Keys', artist: '@DoodleQueen', likes: 189, color: 'bg-pink-400', instrument: '🎹', coverUrl: marshmallowKeys },
-  { id: '3', title: 'Neon Harp', artist: '@RockstarKid', likes: 562, color: 'bg-emerald-400', instrument: '🎼', coverUrl: neonHarp },
-  { id: '4', title: 'Skyblue Jams', artist: '@PlinkyPro', likes: 1024, color: 'bg-sky-400', instrument: '🎹', coverUrl: skyblueJams },
-  { id: '5', title: 'Monster Beats', artist: '@RedMonsterFan', likes: 731, color: 'bg-red-400', instrument: '🥁', coverUrl: monsterBeats },
-  { id: '6', title: 'Rainbow Strings', artist: '@Artiste', likes: 412, color: 'bg-yellow-400', instrument: '🎹', coverUrl: rainbowStrings },
+  { id: '1', title: 'Cosmic Snare', artist: '@LittleMozart', likes: 245, color: 'bg-indigo-400', instrument: '🥁', coverUrl: 'https://raw.githubusercontent.com/kseh92/Plinky/main/assets/monster_beats.png' },
+  { id: '2', title: 'Marshmallow Keys', artist: '@DoodleQueen', likes: 189, color: 'bg-pink-400', instrument: '🎹', coverUrl: 'https://raw.githubusercontent.com/kseh92/Plinky/main/assets/marshmallow_keys.png' },
+  { id: '3', title: 'Neon Harp', artist: '@RockstarKid', likes: 562, color: 'bg-emerald-400', instrument: '🎼', coverUrl: 'https://raw.githubusercontent.com/kseh92/Plinky/main/assets/neon_harp.png' },
+  { id: '4', title: 'Skyblue Jams', artist: '@PlinkyPro', likes: 1024, color: 'bg-sky-400', instrument: '🎹', coverUrl: 'https://raw.githubusercontent.com/kseh92/Plinky/main/assets/skyblue_james.png' },
+  { id: '5', title: 'Monster Beats', artist: '@RedMonsterFan', likes: 731, color: 'bg-red-400', instrument: '🥁', coverUrl: 'https://raw.githubusercontent.com/kseh92/Plinky/main/assets/monster_beats.png' },
+  { id: '6', title: 'Rainbow Strings', artist: '@Artiste', likes: 412, color: 'bg-yellow-400', instrument: '🎹', coverUrl: 'https://raw.githubusercontent.com/kseh92/Plinky/main/assets/cosmic_square.png' },
 ];
 
 export const GalleryPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {

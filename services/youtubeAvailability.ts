@@ -62,11 +62,8 @@ const checkOEmbed = async (videoId: string): Promise<OEmbedResult> => {
 export async function filterPlayableTracks(tracks: RecommendedTrack[]): Promise<RecommendedTrack[]> {
   if (!tracks.length) return tracks;
 
-  const pinned = tracks[0] ? [tracks[0]] : [];
-  const rest = tracks.slice(1);
-
   const results = await Promise.all(
-    rest.map(async (track) => {
+    tracks.map(async (track) => {
       const id = parseVideoId(track.youtubeMusicUrl);
       const oembed = await checkOEmbed(id);
       const matches = oembed.ok && !!oembed.title && !!oembed.author
@@ -80,13 +77,24 @@ export async function filterPlayableTracks(tracks: RecommendedTrack[]): Promise<
   );
 
   const playable = results.filter((r) => r.ok).map((r) => r.track);
-  if (playable.length >= 2) return [...pinned, ...playable.slice(0, 2)];
+  const combined = playable;
 
-  const fallback = rest.slice(0, 2).map((track) => ({
-    ...track,
-    youtubeMusicUrl: buildYouTubeMusicSearchUrl(track.title, track.artist)
-  }));
-  return playable.length
-    ? [...pinned, ...playable, ...fallback.slice(playable.length, 2)]
-    : [...pinned, ...fallback];
+  const normalize = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/&/g, ' and ')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  const seen = new Set<string>();
+  const deduped = combined.filter((track) => {
+    const key = `${normalize(track.title)}::${normalize(track.artist)}`;
+    if (!key.replace(/[:\s]/g, '').length) return false;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  return deduped.slice(0, 3);
 }

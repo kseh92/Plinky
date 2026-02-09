@@ -143,6 +143,28 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         try {
           setRecapStage('Checking YouTube Music availability...');
           finalRecap.recommendedSongs = await filterPlayableTracks(finalRecap.recommendedSongs || []);
+          if (finalRecap.recommendedSongs.length) {
+            const normalize = (value: string | undefined) =>
+              (value || '')
+                .toLowerCase()
+                .replace(/&/g, ' and ')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+            const target = normalize(finalRecap.artistComparison);
+            if (target) {
+              const idx = finalRecap.recommendedSongs.findIndex((song) => {
+                const artist = normalize(song.artist);
+                return artist && (artist.includes(target) || target.includes(artist));
+              });
+              if (idx > 0) {
+                const [match] = finalRecap.recommendedSongs.splice(idx, 1);
+                finalRecap.recommendedSongs.unshift(match);
+              } else if (idx < 0) {
+                finalRecap.artistComparison = finalRecap.recommendedSongs[0].artist;
+              }
+            }
+          }
           console.info('[Result] Availability check complete');
         } catch (err) {
           console.warn('[Result] Availability check failed', err);

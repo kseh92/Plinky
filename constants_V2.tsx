@@ -64,38 +64,75 @@ export const TEMPLATE_IMAGES: Record<InstrumentType, string> = {
   'Harp': 'https://raw.githubusercontent.com/google-gemini/cookbook/main/samples/inputs/paper_instruments/piano_drawing.png'
 };
 
+export interface PresetKey {
+  note: string;
+  color: string;
+  rect: { x: number; y: number; w: number; h: number };
+  isBlack?: boolean;
+}
+
+export const PIANO_KEYS: PresetKey[] = [
+  { note: 'c4', color: '#93c5fd', rect: { x: 0.145, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'd4', color: '#93c5fd', rect: { x: 0.196, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'e4', color: '#93c5fd', rect: { x: 0.247, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'f4', color: '#93c5fd', rect: { x: 0.298, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'g4', color: '#93c5fd', rect: { x: 0.349, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'a4', color: '#93c5fd', rect: { x: 0.4, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'b4', color: '#93c5fd', rect: { x: 0.451, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'c5', color: '#93c5fd', rect: { x: 0.502, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'd5', color: '#93c5fd', rect: { x: 0.553, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'e5', color: '#93c5fd', rect: { x: 0.604, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'f5', color: '#93c5fd', rect: { x: 0.655, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'g5', color: '#93c5fd', rect: { x: 0.706, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'a5', color: '#93c5fd', rect: { x: 0.757, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'b5', color: '#93c5fd', rect: { x: 0.808, y: 0.34, w: 0.051, h: 0.44 } },
+  { note: 'c#4', color: '#1f2937', rect: { x: 0.175, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'd#4', color: '#1f2937', rect: { x: 0.225, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'f#4', color: '#1f2937', rect: { x: 0.325, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'g#4', color: '#1f2937', rect: { x: 0.375, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'a#4', color: '#1f2937', rect: { x: 0.425, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'c#5', color: '#1f2937', rect: { x: 0.53, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'd#5', color: '#1f2937', rect: { x: 0.58, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'f#5', color: '#1f2937', rect: { x: 0.68, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'g#5', color: '#1f2937', rect: { x: 0.73, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true },
+  { note: 'a#5', color: '#1f2937', rect: { x: 0.78, y: 0.34, w: 0.04, h: 0.26 }, isBlack: true }
+];
+
+export const HARP_STRINGS: PresetKey[] = [
+  { note: 'c4', color: '#22d3ee', rect: { x: 0.2, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'd4', color: '#a78bfa', rect: { x: 0.25, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'e4', color: '#fbbf24', rect: { x: 0.3, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'f4', color: '#34d399', rect: { x: 0.35, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'g4', color: '#22d3ee', rect: { x: 0.4, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'a4', color: '#a78bfa', rect: { x: 0.45, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'b4', color: '#fbbf24', rect: { x: 0.5, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'c5', color: '#34d399', rect: { x: 0.55, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'd5', color: '#22d3ee', rect: { x: 0.6, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'e5', color: '#a78bfa', rect: { x: 0.65, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'f5', color: '#fbbf24', rect: { x: 0.7, y: 0.15, w: 0.025, h: 0.7 } },
+  { note: 'g5', color: '#34d399', rect: { x: 0.75, y: 0.15, w: 0.025, h: 0.7 } }
+];
+
+export const XYLOPHONE_BARS: PresetKey[] = [
+  { note: 'c4', color: '#f87171', rect: { x: 0.20, y: 0.45, w: 0.073, h: 0.30 } },
+  { note: 'd4', color: '#fb923c', rect: { x: 0.30, y: 0.43, w: 0.073, h: 0.28 } },
+  { note: 'e4', color: '#fbbf24', rect: { x: 0.40, y: 0.29, w: 0.073, h: 0.26 } },
+  { note: 'f4', color: '#34d399', rect: { x: 0.50, y: 0.50, w: 0.073, h: 0.24 } },
+  { note: 'g4', color: '#60a5fa', rect: { x: 0.60, y: 0.58, w: 0.073, h: 0.26 } },
+  { note: 'a4', color: '#a78bfa', rect: { x: 0.70, y: 0.43, w: 0.073, h: 0.28 } },
+  { note: 'b4', color: '#f472b6', rect: { x: 0.80, y: 0.30, w: 0.073, h: 0.28 } }
+];
+
 // Precisely mapped hit zones for the images provided
 export const PRESET_ZONES: Record<InstrumentType, HitZone[]> = {
-  'Piano': [
-    // Octave 4 White Keys
-    { sound: 'c4', label: 'C', x: 14.5, y: 34, width: 5.1, height: 44 },
-    { sound: 'd4', label: 'D', x: 19.6, y: 34, width: 5.1, height: 44 },
-    { sound: 'e4', label: 'E', x: 24.7, y: 34, width: 5.1, height: 44 },
-    { sound: 'f4', label: 'F', x: 29.8, y: 34, width: 5.1, height: 44 },
-    { sound: 'g4', label: 'G', x: 34.9, y: 34, width: 5.1, height: 44 },
-    { sound: 'a4', label: 'A', x: 40.0, y: 34, width: 5.1, height: 44 },
-    { sound: 'b4', label: 'B', x: 45.1, y: 34, width: 5.1, height: 44 },
-    // Octave 5 White Keys
-    { sound: 'c5', label: 'C', x: 50.2, y: 34, width: 5.1, height: 44 },
-    { sound: 'd5', label: 'D', x: 55.3, y: 34, width: 5.1, height: 44 },
-    { sound: 'e5', label: 'E', x: 60.4, y: 34, width: 5.1, height: 44 },
-    { sound: 'f5', label: 'F', x: 65.5, y: 34, width: 5.1, height: 44 },
-    { sound: 'g5', label: 'G', x: 70.6, y: 34, width: 5.1, height: 44 },
-    { sound: 'a5', label: 'A', x: 75.7, y: 34, width: 5.1, height: 44 },
-    { sound: 'b5', label: 'B', x: 80.8, y: 34, width: 5.1, height: 44 },
-    // Octave 4 Sharps
-    { sound: 'c#4', label: 'C#', x: 17.5, y: 34, width: 4, height: 26 },
-    { sound: 'd#4', label: 'D#', x: 22.5, y: 34, width: 4, height: 26 },
-    { sound: 'f#4', label: 'F#', x: 32.5, y: 34, width: 4, height: 26 },
-    { sound: 'g#4', label: 'G#', x: 37.5, y: 34, width: 4, height: 26 },
-    { sound: 'a#4', label: 'A#', x: 42.5, y: 34, width: 4, height: 26 },
-    // Octave 5 Sharps
-    { sound: 'c#5', label: 'C#', x: 53.0, y: 34, width: 4, height: 26 },
-    { sound: 'd#5', label: 'D#', x: 58.0, y: 34, width: 4, height: 26 },
-    { sound: 'f#5', label: 'F#', x: 68.0, y: 34, width: 4, height: 26 },
-    { sound: 'g#5', label: 'G#', x: 73.0, y: 34, width: 4, height: 26 },
-    { sound: 'a#5', label: 'A#', x: 78.0, y: 34, width: 4, height: 26 },
-  ],
+  'Piano': PIANO_KEYS.map((k) => ({
+    sound: k.note,
+    label: k.note.replace('4', '').replace('5', '').toUpperCase(),
+    x: k.rect.x * 100,
+    y: k.rect.y * 100,
+    width: k.rect.w * 100,
+    height: k.rect.h * 100
+  })),
   'Drum': [
     { sound: 'kick', label: 'KICK', x: 38, y: 46, width: 24, height: 35 },
     { sound: 'snare', label: 'SNARE', x: 23, y: 41, width: 15, height: 20 },
@@ -103,22 +140,15 @@ export const PRESET_ZONES: Record<InstrumentType, HitZone[]> = {
     { sound: 'tom_hi', label: 'HI TOM', x: 37, y: 25, width: 13, height: 18 },
     { sound: 'tom_mid', label: 'MID TOM', x: 50, y: 25, width: 13, height: 18 },
     { sound: 'crash_l', label: 'CRASH L', x: 22, y: 11, width: 16, height: 20 },
-    { sound: 'crash_r', label: 'CRASH R', x: 62, y: 11, width: 16, height: 20 },
+    { sound: 'crash_r', label: 'CRASH R', x: 62, y: 11, width: 16, height: 20 }
   ],
   'Guitar': [],
-  'Harp': [
-    { sound: 'c4', label: 'C', x: 20, y: 15, width: 2.5, height: 70 },
-    { sound: 'd4', label: 'D', x: 25, y: 15, width: 2.5, height: 70 },
-    { sound: 'e4', label: 'E', x: 30, y: 15, width: 2.5, height: 70 },
-    { sound: 'f4', label: 'F', x: 35, y: 15, width: 2.5, height: 70 },
-    { sound: 'g4', label: 'G', x: 40, y: 15, width: 2.5, height: 70 },
-    { sound: 'a4', label: 'A', x: 45, y: 15, width: 2.5, height: 70 },
-    { sound: 'b4', label: 'B', x: 50, y: 15, width: 2.5, height: 70 },
-    { sound: 'c5', label: 'C', x: 55, y: 15, width: 2.5, height: 70 },
-    { sound: 'd5', label: 'D', x: 60, y: 15, width: 2.5, height: 70 },
-    { sound: 'e5', label: 'E', x: 65, y: 15, width: 2.5, height: 70 },
-    { sound: 'f5', label: 'F', x: 70, y: 15, width: 2.5, height: 70 },
-    { sound: 'g5', label: 'G', x: 75, y: 15, width: 2.5, height: 70 },
-  ]
-
+  'Harp': HARP_STRINGS.map((s) => ({
+    sound: s.note,
+    label: s.note.toUpperCase(),
+    x: s.rect.x * 100,
+    y: s.rect.y * 100,
+    width: s.rect.w * 100,
+    height: s.rect.h * 100
+  }))
 };

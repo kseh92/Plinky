@@ -63,6 +63,8 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
   const uniqueNotesRef = useRef<Set<string>>(new Set());
   const activeHitsRef = useRef<Set<string>>(new Set());
   const particlesRef = useRef<Particle[]>([]);
+  const pointerDownRef = useRef(false);
+  const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
 
   const instrumentCenter = useMemo(() => {
     if (hitZones.length === 0) return { x: 50, y: 50 };
@@ -163,6 +165,57 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
         rotationSpeed: (Math.random() - 0.5) * 0.2
       });
     }
+  };
+
+  const getScaledZones = () => {
+    return hitZones.map(zone => {
+      const sW = zone.width * zoneScale;
+      const sH = zone.height * zoneScale;
+      const sX_raw = instrumentCenter.x + (zone.x - instrumentCenter.x) * zoneScale;
+      const sY = instrumentCenter.y + (zone.y - instrumentCenter.y) * zoneScale;
+      const sX = instrumentType === 'Piano' ? (100 - (sX_raw + sW)) : sX_raw;
+      return { ...zone, sX, sY, sW, sH };
+    });
+  };
+
+  const handleTouchPlay = (clientX: number, clientY: number) => {
+    if (!hasStarted || !canvasRef.current) return;
+    if (instrumentType !== 'Harp' && instrumentType !== 'Drum' && instrumentType !== 'Piano') return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return;
+    let tx = (clientX - rect.left) / rect.width;
+    let ty = (clientY - rect.top) / rect.height;
+    if (tx < 0 || tx > 1 || ty < 0 || ty > 1) return;
+
+    // Canvas is mirrored via CSS scaleX(-1)
+    tx = 1 - tx;
+
+    const scaledZones = getScaledZones();
+    const hitZone = scaledZones.find((zone) =>
+      tx >= zone.sX / 100 && tx <= (zone.sX + zone.sW) / 100 &&
+      ty >= zone.sY / 100 && ty <= (zone.sY + zone.sH) / 100
+    );
+
+    if (!hitZone) {
+      return;
+    }
+
+    const now = Date.now();
+    const lastTime = lastTouchTimeRef.current.get(hitZone.sound) || 0;
+    if (now - lastTime < 40) return;
+    lastTouchTimeRef.current.set(hitZone.sound, now);
+
+    const taggedSound = instrumentType === 'Harp' ? `harp:${hitZone.sound}` : hitZone.sound;
+    toneService.play(taggedSound, undefined, instrumentType);
+    if (instrumentType === 'Harp' || instrumentType === 'Piano') {
+      window.setTimeout(() => toneService.release(taggedSound, undefined, instrumentType), 200);
+    }
+    noteCountRef.current += 1;
+    uniqueNotesRef.current.add(hitZone.sound);
+    const px = ((hitZone.sX + hitZone.sW / 2) / 100) * canvasRef.current.width;
+    const py = ((hitZone.sY + hitZone.sH / 2) / 100) * canvasRef.current.height;
+    const pColor = instrumentType === 'Drum' ? '#f87171' : instrumentType === 'Piano' ? '#ffffff' : '#fbbf24';
+    spawnParticles(px, py, pColor);
   };
 
   const drawWobblyPath = (ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, jitter: number = 3.5) => {
@@ -340,11 +393,24 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
     let animationId: number;
     const render = () => {
       if (videoRef.current && canvasRef.current && videoRef.current.readyState === 4) {
-        const results = landmarker.detectForVideo(videoRef.current, performance.now());
+        const vw = videoRef.current.videoWidth;
+        const vh = videoRef.current.videoHeight;
+        if (!vw || !vh) {
+          animationId = requestAnimationFrame(render);
+          return;
+        }
+        const aspect = vw / vh;
+        const roi = aspect >= 1
+          ? { left: (1 - (vh / vw)) / 2, top: 0, right: 1 - (1 - (vh / vw)) / 2, bottom: 1 }
+          : { left: 0, top: (1 - (vw / vh)) / 2, right: 1, bottom: 1 - (1 - (vw / vh)) / 2 };
+        const results = landmarker.detectForVideo(videoRef.current, performance.now(), {
+          regionOfInterest: roi,
+          rotationDegrees: 0
+        });
         const ctx = canvasRef.current.getContext('2d');
         if (ctx) {
-          canvasRef.current.width = videoRef.current.clientWidth;
-          canvasRef.current.height = videoRef.current.clientHeight;
+          canvasRef.current.width = vw;
+          canvasRef.current.height = vh;
           ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           
           const scaledZones = hitZones.map(zone => {
@@ -554,7 +620,17 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit })
         />
         <canvas
           ref={canvasRef}
-          className="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10 pointer-events-none"
+          className="absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"
+          onPointerDown={(e) => {
+            pointerDownRef.current = true;
+            handleTouchPlay(e.clientX, e.clientY);
+          }}
+          onPointerMove={(e) => {
+            if (!pointerDownRef.current) return;
+            handleTouchPlay(e.clientX, e.clientY);
+          }}
+          onPointerUp={() => { pointerDownRef.current = false; }}
+          onPointerLeave={() => { pointerDownRef.current = false; }}
         />
       </div>
 

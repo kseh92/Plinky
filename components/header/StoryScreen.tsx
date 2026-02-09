@@ -18,11 +18,14 @@ export const StoryScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => (
     <div className="space-y-12 text-left">
       <section>
         <h3 className="text-2xl font-black text-[#FF6B6B] uppercase tracking-widest mb-4">Why we created Plinky 🎨</h3>
-        <p className="text-xl md:text-2xl text-[#1e3a8a] leading-relaxed font-bold">
-          We believe that every child is an artist, and every doodle holds a hidden melody. 
-          Plinky was born from a simple dream: <span className="text-[#FF6B6B]">to turn the drawings on our fridges into real, playable magic.</span>
-          We wanted to bridge the gap between static sketches and interactive digital performance, making creativity truly audible.
-        </p>
+        <div className="text-xl md:text-2xl text-[#1e3a8a] leading-relaxed font-bold space-y-4">
+          <p>
+            We believe that every child is an artist, and every doodle holds a hidden melody. Plinky was born from a simple dream: <span className="text-[#FF6B6B]">to turn the drawings on our fridges into real, playable magic.</span>
+          </p>
+          <p>
+            We wanted to bridge the gap between static sketches and interactive digital performance, making creativity truly audible. This is where art, music, and imagination finally meet.
+          </p>
+        </div>
       </section>
 
       <section className="bg-white/60 p-10 rounded-[3rem] border-4 border-white shadow-xl">
@@ -38,7 +41,7 @@ export const StoryScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => (
           <li className="flex flex-col items-center text-center gap-4">
             <span className="text-5xl">🧩</span>
             <div>
-              <p className="text-xl font-black text-[#1e3a8a] mb-2">Learning Through Play</p>
+              <p className="text-xl font-black text-[#1e3a8a] mb-2">Learn Through Play</p>
               <p className="text-lg text-[#1e3a8a]/70 font-medium">Introducing complex musical concepts like notes, scales, and mixing without the steep learning curve.</p>
             </div>
           </li>

@@ -117,7 +117,7 @@ const SettingsPage: React.FC<{ onBack: () => void; showDebugHud: boolean; onTogg
 
         {/* Debug Section */}
         <section className="bg-white/60 p-8 md:p-10 rounded-[3rem] border-4 border-white shadow-xl">
-          <h3 className="text-2xl font-black text-[#1e3a8a] uppercase tracking-widest mb-6">Developer Tools 🧪</h3>
+          <h3 className="text-2xl font-black text-[#1e3a8a] uppercase tracking-widest mb-6">🧪 Expert Tool</h3>
           <div className="bg-white/80 p-6 rounded-[2.5rem] border-2 border-white flex items-center justify-between shadow-md">
             <div className="pr-4">
               <p className="font-black text-[#1e3a8a] uppercase tracking-wider">Instrument HUD</p>

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { InstrumentType, InstrumentBlueprint, HitZone, SessionStats, PerformanceEvent, AppMode } from '../../services/types.ts';
 import { PRESET_ZONES } from '../../services/constants';
-import { generateBlueprint, scanDrawing, detectImageKeyword } from '../../services/geminiService';
+import { generateBlueprint, scanDrawing, detectImageKeyword, generateInstrumentOverlay, generateInstrumentTexture } from '../../services/geminiService';
 
 export type Step =
   | 'landing' | 'pick' | 'provide' | 'scan' | 'confirmScan' | 'play' | 'result' | 'blueprint'
@@ -13,6 +13,9 @@ export function useAppFlow() {
   const [step, setStep] = React.useState<Step>('landing');
   const [selectedType, setSelectedType] = React.useState<InstrumentType | null>(null);
   const [exploreMode, setExploreMode] = React.useState<AppMode | null>(null);
+  const [exploreOverlayUrl, setExploreOverlayUrl] = React.useState<string | null>(null);
+  const [exploreTextureUrl, setExploreTextureUrl] = React.useState<string | null>(null);
+  const [exploreOverlayLoading, setExploreOverlayLoading] = React.useState(false);
   const [blueprint, setBlueprint] = React.useState<InstrumentBlueprint | null>(null);
   const [hitZones, setHitZones] = React.useState<HitZone[]>([]);
   const [capturedImage, setCapturedImage] = React.useState<string | null>(null);
@@ -55,15 +58,51 @@ export function useAppFlow() {
   };
 
   const handleCreateCustom = (name: string) => {
+    const lower = name.toLowerCase();
+    const mode =
+      lower.includes('drum') || lower.includes('drums')
+        ? AppMode.DRUM
+        : lower.includes('xylophone')
+          ? AppMode.XYLOPHONE
+          : lower.includes('harp')
+            ? AppMode.HARP
+            : AppMode.PIANO;
+    setExploreMode(mode);
     setSelectedType(name);
     setJacketKeyword(extractKeywordFromName(name));
-    setStep('provide');
+    setExploreOverlayUrl(null);
+    setExploreTextureUrl(null);
+    setExploreOverlayLoading(true);
+    setStep('explorePreset');
+    Promise.all([
+      generateInstrumentOverlay(name, mode).catch((err) => {
+        console.error('[Overlay] Generation failed', err);
+        return null;
+      }),
+      generateInstrumentTexture(name).catch((err) => {
+        console.error('[Texture] Generation failed', err);
+        return null;
+      })
+    ])
+      .then(([overlay, texture]) => {
+        if (overlay) setExploreOverlayUrl(overlay);
+        if (texture) setExploreTextureUrl(texture);
+      })
+      .finally(() => setExploreOverlayLoading(false));
   };
 
   const handlePickPreset = (mode: AppMode, name: string) => {
     setExploreMode(mode);
     setSelectedType(name);
     setJacketKeyword(extractKeywordFromName(name));
+    setCapturedImage(null);
+    setHitZones([]);
+    setRecording(null);
+    setSessionStats(null);
+    setError(null);
+    setExploreOverlayUrl(null);
+    setExploreTextureUrl(null);
+    setExploreOverlayLoading(false);
     setStep('explorePreset');
   };
 
@@ -163,11 +202,15 @@ export function useAppFlow() {
     setCapturedImage(null);
     setJacketKeyword(null);
     setExploreMode(null);
+    setExploreOverlayUrl(null);
+    setExploreTextureUrl(null);
+    setExploreOverlayLoading(false);
   };
 
   return {
     step, setStep,
     selectedType, blueprint, hitZones, capturedImage, recording, exploreMode,
+    exploreOverlayUrl, exploreTextureUrl, exploreOverlayLoading,
     isLoading, error, sessionStats,
     showDebugHud, setShowDebugHud,
     handlePick, handleCreateCustom, handlePickPreset,

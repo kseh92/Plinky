@@ -290,6 +290,22 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     fetchAIAssistance();
   }, [stats, accurateDuration, isMeasuring]);
 
+  useEffect(() => {
+    if (jamSavedRef.current) return;
+    if (!recap?.personalJacketUrl || !stats?.instrument) return;
+    jamSavedRef.current = true;
+    const id = (crypto as any)?.randomUUID?.() || `jam_${Date.now()}`;
+    const date = new Date().toISOString().slice(0, 10);
+    saveJamToLocalStorage({
+      id,
+      title: recap.trackTitle || 'My Jam',
+      date,
+      instrument: stats.instrument || 'Unknown',
+      color: getInstrumentColor(stats.instrument),
+      coverUrl: recap.personalJacketUrl
+    });
+  }, [recap?.personalJacketUrl, recap?.trackTitle, stats?.instrument]);
+
   const handleDownloadOriginal = () => {
     if (!audioUrl) return;
     const a = document.createElement('a');

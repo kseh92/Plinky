@@ -327,6 +327,14 @@ class ToneService {
     }
   }
 
+  startNote(soundId: string | undefined | null, currentInstrument?: InstrumentType) {
+    this.play(soundId, undefined, currentInstrument);
+  }
+
+  stopNote(soundId: string | undefined | null, currentInstrument?: InstrumentType) {
+    this.release(soundId, undefined, currentInstrument);
+  }
+
   async replayEventLog(log: PerformanceEvent[]) {
     this.stopAll();
     if (!this.initialized) await this.init();
@@ -345,9 +353,14 @@ class ToneService {
 
   async startRecording() {
     if (!this.initialized || !this.recorder) return;
+    if (this.recorder.state === 'started') return;
     this.eventLog = [];
     this._recordingStart = performance.now();
     this.recorder.start();
+  }
+
+  setRecordingStartNow() {
+    this._recordingStart = performance.now();
   }
 
   async stopRecording(): Promise<{ blob: Blob; duration: number; eventLog: PerformanceEvent[] } | null> {

@@ -1,4 +1,4 @@
-
+﻿
 import React, { useState } from 'react';
 import { AppMode } from '../../services/types';
 
@@ -19,17 +19,42 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
     }
   };
 
-  const suggestions = [
-    { name: 'Piano with wings', icon: '🎹🕊️', color: 'bg-blue-400' },
-    { name: 'Snake shaped xylophone', icon: '🐍🎵', color: 'bg-emerald-400' },
-    { name: 'Neon harp', icon: '🌈✨', color: 'bg-purple-400' }
-  ];
-
-  const presetModes: Record<string, AppMode> = {
-    'Piano with wings': AppMode.PIANO,
-    'Snake shaped xylophone': AppMode.XYLOPHONE,
-    'Neon harp': AppMode.HARP
+  const getShapeFromText = (text: string) => {
+    const value = text.toLowerCase();
+    if (value.includes('star')) return 'star';
+    if (value.includes('cloud')) return 'cloud';
+    if (value.includes('heart')) return 'heart';
+    if (value.includes('triangle')) return 'triangle';
+    if (value.includes('square') || value.includes('box')) return 'square';
+    if (value.includes('circle') || value.includes('sun') || value.includes('moon')) return 'circle';
+    return 'blob';
   };
+
+  const renderPreviewShape = () => {
+    const shape = getShapeFromText(customName);
+    switch (shape) {
+      case 'star':
+        return <path d="M50 6 L61 38 L95 38 L67 58 L78 92 L50 72 L22 92 L33 58 L5 38 L39 38 Z" />;
+      case 'cloud':
+        return <path d="M28 70 C12 70 8 50 24 45 C26 30 38 24 50 28 C58 18 78 20 82 36 C94 38 98 56 86 64 C86 72 78 78 68 76 L32 76 C30 74 29 72 28 70 Z" />;
+      case 'heart':
+        return <path d="M50 86 C36 74 14 60 14 40 C14 28 22 20 34 20 C42 20 48 24 50 30 C52 24 58 20 66 20 C78 20 86 28 86 40 C86 60 64 74 50 86 Z" />;
+      case 'triangle':
+        return <path d="M50 12 L92 86 L8 86 Z" />;
+      case 'square':
+        return <rect x="18" y="18" width="64" height="64" rx="8" ry="8" />;
+      case 'circle':
+        return <circle cx="50" cy="50" r="34" />;
+      default:
+        return <path d="M18 60 C12 44 18 26 36 24 C42 10 64 10 70 26 C86 28 90 52 78 62 C74 76 52 86 36 78 C24 80 18 72 18 60 Z" />;
+    }
+  };
+
+  const suggestions = [
+    { name: 'Piano with wings', icon: 'P', color: 'bg-blue-400', mode: AppMode.PIANO },
+    { name: 'Snake-shaped xylophone', icon: 'X', color: 'bg-emerald-400', mode: AppMode.XYLOPHONE },
+    { name: 'Neon-harp', icon: 'H', color: 'bg-purple-400', mode: AppMode.HARP }
+  ];
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6 md:p-12 bg-white/40 backdrop-blur-xl rounded-[3rem] md:rounded-[4rem] shadow-2xl border-[8px] md:border-[12px] border-white/60 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -53,13 +78,21 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
         <div className="absolute top-[-20%] right-[-10%] w-[500px] h-[500px] bg-white/20 rounded-full blur-[100px] animate-pulse"></div>
         
         <div className="relative z-10 flex flex-col items-center text-center max-w-3xl mx-auto">
-          <div className="w-24 h-24 bg-white/90 rounded-full flex items-center justify-center text-5xl shadow-2xl mb-8 group-hover:rotate-12 transition-transform duration-500">🪄</div>
+          <div className="w-24 h-24 bg-white/90 rounded-full flex items-center justify-center text-5xl shadow-2xl mb-8 group-hover:rotate-12 transition-transform duration-500">?챷</div>
           <h3 className="text-4xl md:text-6xl font-black text-white uppercase tracking-tighter mb-6" style={{ fontFamily: 'Fredoka One' }}>
             Magic Instrument Creator
           </h3>
           <p className="text-white/90 text-xl md:text-2xl font-bold leading-relaxed mb-10 drop-shadow-sm">
             Draw a silly shape and hear it sing! <br /> Try a <span className="text-yellow-200 font-black italic">Star Harp</span> or <span className="text-pink-200 font-black italic">Cloud Drums</span>.
           </p>
+
+          <div className="w-32 h-32 md:w-36 md:h-36 bg-white/90 rounded-full shadow-2xl mb-8 flex items-center justify-center border-4 border-white/80">
+            <svg viewBox="0 0 100 100" className="w-20 h-20 text-[#1e3a8a]">
+              <g fill="currentColor" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" strokeLinecap="round">
+                {renderPreviewShape()}
+              </g>
+            </svg>
+          </div>
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col md:flex-row gap-5">
             <input 
@@ -74,7 +107,7 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
               disabled={!customName.trim()}
               className="bg-yellow-400 hover:bg-yellow-300 disabled:bg-gray-400 disabled:opacity-50 text-[#1e3a8a] px-12 py-7 rounded-full font-black text-2xl uppercase tracking-widest shadow-[0_10px_0_#ca8a04] hover:translate-y-1 active:translate-y-2 active:shadow-none transition-all flex items-center justify-center gap-4"
             >
-              <span>🖋️</span> DRAW
+              <span>?뼀截?</span> DRAW
             </button>
           </form>
         </div>
@@ -89,7 +122,8 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
           {suggestions.map((item) => (
             <button
               key={item.name}
-              onClick={() => onPickPreset(presetModes[item.name] || AppMode.PIANO, item.name)}
+              type="button"
+              onClick={() => onPickPreset(item.mode, item.name)}
               className={`${item.color} p-10 rounded-[3rem] shadow-[0_12px_0_rgba(0,0,0,0.1)] hover:-translate-y-2 hover:scale-105 transition-all flex flex-col items-center border-[10px] border-white/30 group`}
             >
               <span className="text-7xl mb-4 group-hover:animate-bounce">{item.icon}</span>
@@ -105,3 +139,6 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
     </div>
   );
 };
+
+
+

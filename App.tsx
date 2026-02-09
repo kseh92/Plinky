@@ -29,6 +29,7 @@ import { GalleryPage } from './components/header/GalleryPage';
 import { YourJamScreen } from './components/header/YourJamPage';
 import { ExploreScreen } from './components/screens/ExplorePage';
 import ExplorePresets from './components/player/ExplorePresets';
+import { AppMode } from './services/types';
 
 // --- Player Components ---
 import BlueprintDisplay from './components/player/BlueprintDisplay';
@@ -55,6 +56,9 @@ const App: React.FC = () => {
     recording,
     sessionStats,
     exploreMode,
+    exploreOverlayUrl,
+    exploreTextureUrl,
+    exploreOverlayLoading,
     showDebugHud,
     setShowDebugHud,
     handlePick,
@@ -304,9 +308,19 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {step === 'explorePreset' && exploreMode && (
+          {step === 'explorePreset' && (
             <div className="fixed inset-0 z-[150] bg-black">
-              <ExplorePresets mode={exploreMode} onExit={handleFinishedPlaying} />
+              <ErrorBoundary>
+                <ExplorePresets
+                  mode={exploreMode || AppMode.PIANO}
+                  onExit={handleFinishedPlaying}
+                  onSwitchPreset={handlePickPreset}
+                presetName={selectedType || undefined}
+                overlayImage={exploreOverlayUrl}
+                overlayTexture={exploreTextureUrl}
+                overlayLoading={exploreOverlayLoading}
+              />
+              </ErrorBoundary>
             </div>
           )}
 

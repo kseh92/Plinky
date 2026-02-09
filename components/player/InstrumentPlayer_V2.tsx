@@ -53,6 +53,7 @@ const MascotPlayer: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, showDebugHud = false }) => {
+  const TOUCH_DEBOUNCE_MS = 15;
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [landmarker, setLandmarker] = useState<HandLandmarker | null>(null);
@@ -75,6 +76,7 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
   const pointerDownRef = useRef(false);
   const lastTouchTimeRef = useRef<Map<string, number>>(new Map());
   const roiSupportedRef = useRef<boolean | null>(null);
+  const firstTouchTimeRef = useRef<number | null>(null);
 
   const instrumentCenter = useMemo(() => {
     if (hitZones.length === 0) return { x: 50, y: 50 };
@@ -212,10 +214,14 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
 
     const now = Date.now();
     const lastTime = lastTouchTimeRef.current.get(hitZone.sound) || 0;
-    if (now - lastTime < 40) return;
+    if (now - lastTime < TOUCH_DEBOUNCE_MS) return;
     lastTouchTimeRef.current.set(hitZone.sound, now);
 
     const taggedSound = instrumentType === 'Harp' ? `harp:${hitZone.sound}` : hitZone.sound;
+    if (firstTouchTimeRef.current === null) {
+      firstTouchTimeRef.current = performance.now();
+      toneService.setRecordingStartNow();
+    }
     toneService.play(taggedSound, undefined, instrumentType);
     if (instrumentType === 'Harp' || instrumentType === 'Piano') {
       window.setTimeout(() => toneService.release(taggedSound, undefined, instrumentType), 200);
@@ -716,11 +722,20 @@ const InstrumentPlayer: React.FC<Props> = ({ instrumentType, hitZones, onExit, s
       )}
       <button
         onClick={() => setShowMascot((prev) => !prev)}
-        className="absolute left-4 bottom-6 z-30 bg-white/80 hover:bg-white text-[#1e3a8a] border-2 border-white/90 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-md transition-all"
+        className="absolute left-4 bottom-6 z-[60] pointer-events-auto bg-white/80 hover:bg-white text-[#1e3a8a] border-2 border-white/90 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-md transition-all"
         title={showMascot ? 'Hide mascot' : 'Show mascot'}
       >
         {showMascot ? 'Hide Buddy' : 'Show Buddy'}
       </button>
+
+      {hasStarted && showDebugHud && (
+        <div className="absolute left-6 top-6 z-[60] bg-black/60 text-white text-xs font-mono px-3 py-2 rounded-lg border border-white/10 pointer-events-none">
+          <div>Zones: {debugInfo.hitZones}</div>
+          <div>Landmarks: {debugInfo.landmarks}</div>
+          <div>Last Hit: {debugInfo.lastHit}</div>
+          <div>Audio: {debugInfo.audioState}</div>
+        </div>
+      )}
 
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-white/90 text-blue-600 font-bold text-2xl z-[100]">

@@ -1,5 +1,5 @@
-
-import React from 'react';
+﻿
+import React, { useMemo, useEffect, useState } from 'react';
 import { getInstrumentIcon } from '../../services/constants';
 
 interface JamItem {
@@ -11,12 +11,26 @@ interface JamItem {
   coverUrl: string;
 }
 
-const MY_JAMS: JamItem[] = [
-  { id: 'j1', title: 'My First Symphony', date: '2023-10-24', instrument: 'Piano', color: 'bg-blue-400', coverUrl: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=400' },
-  { id: 'j2', title: 'Doodle Rocker', date: '2023-11-05', instrument: 'Drum', color: 'bg-red-400', coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=400' },
-  { id: 'j3', title: 'Sunset Harp', date: '2023-12-12', instrument: 'Harp', color: 'bg-emerald-400', coverUrl: 'https://images.unsplash.com/photo-1508700115892-45ecd05ae2ad?q=80&w=400' },
-  { id: 'j4', title: 'Lunchtime Jam', date: '2024-01-20', instrument: 'Piano', color: 'bg-indigo-400', coverUrl: 'https://images.unsplash.com/photo-1496293455970-f8581aae0e3c?q=80&w=400' },
-];
+const MY_JAMS_STORAGE_KEY = 'plinky_my_jams_v1';
+
+const loadSavedJams = (): JamItem[] => {
+  try {
+    const raw = localStorage.getItem(MY_JAMS_STORAGE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((x) =>
+      x &&
+      typeof x.id === 'string' &&
+      typeof x.title === 'string' &&
+      typeof x.date === 'string' &&
+      typeof x.instrument === 'string' &&
+      typeof x.color === 'string' &&
+      typeof x.coverUrl === 'string'
+    );
+  } catch {
+    return [];
+  }
+};
 
 const VinylJam: React.FC<{ item: JamItem }> = ({ item }) => {
   return (
@@ -55,10 +69,10 @@ const VinylJam: React.FC<{ item: JamItem }> = ({ item }) => {
         
         <div className="mt-auto flex justify-center gap-3">
           <button className="bg-[#1e3a8a] text-white p-3 rounded-full font-black uppercase tracking-widest text-[9px] shadow-[0_3px_0_#020A20] hover:translate-y-0.5 hover:shadow-none transition-all flex items-center justify-center gap-1.5 flex-1">
-            <span>▶️</span> Play
+            <span>Play</span>
           </button>
           <button className="bg-white text-[#1e3a8a] border-2 border-[#1e3a8a] p-3 rounded-full font-black uppercase tracking-widest text-[9px] hover:bg-[#1e3a8a] hover:text-white transition-all flex items-center justify-center gap-1.5 flex-1">
-            <span>🔗</span> Share
+            <span>Share</span>
           </button>
         </div>
       </div>
@@ -68,6 +82,13 @@ const VinylJam: React.FC<{ item: JamItem }> = ({ item }) => {
 
 // --- YourJamScreen: Local collection of recorded jams ---
 export const YourJamScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
+  const [savedJams, setSavedJams] = useState<JamItem[]>([]);
+
+  useEffect(() => {
+    setSavedJams(loadSavedJams());
+  }, []);
+
+  const jamsToRender = useMemo(() => savedJams, [savedJams]);
   return (
     <div className="w-full max-w-6xl mx-auto p-8 md:p-12 bg-white/20 backdrop-blur-xl rounded-[4rem] shadow-2xl border-[12px] border-white/40 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
@@ -81,20 +102,19 @@ export const YourJamScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           onClick={onBack}
           className="bg-[#FF6B6B] text-white px-8 py-4 rounded-full font-black text-lg flex items-center justify-center shadow-[0_6px_0_#D64545] hover:translate-y-1 active:shadow-none transition-all uppercase tracking-widest"
         >
-          New Jam session 🎨
+          New Jam session
         </button>
       </div>
 
-      {MY_JAMS.length > 0 ? (
+      {jamsToRender.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {MY_JAMS.map((item) => (
+          {jamsToRender.map((item) => (
             <VinylJam key={item.id} item={item} />
           ))}
         </div>
       ) : (
         <div className="py-20 text-center">
-          <div className="text-9xl mb-8">🫙</div>
-          <h3 className="text-3xl font-black text-[#1e3a8a] uppercase tracking-widest">Your Jar is Empty!</h3>
+          <h3 className="text-3xl font-black text-[#1e3a8a] uppercase tracking-widest">Your Jam Jar is Empty!</h3>
           <p className="text-[#1e3a8a]/60 font-bold mt-4 mb-10">Go record some magic melodies to fill it up.</p>
           <button
             onClick={onBack}
@@ -111,3 +131,4 @@ export const YourJamScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     </div>
   );
 };
+

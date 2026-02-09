@@ -2,9 +2,12 @@ import React from 'react';
 
 // --- Header Component ---
 
-export const GlobalHeader: React.FC<{ onHome: () => void; onStory: () => void; onGallery: () => void; onYourJam: () => void; onSettings: () => void; onExplore: () => void; currentStep: string }> = ({ onHome, onStory, onGallery, onYourJam, onSettings, onExplore, currentStep }) => (
-  <header className="fixed top-0 left-0 right-0 z-[100] flex justify-center p-6 pointer-events-none">
-    <nav className="flex items-center gap-6 md:gap-12 bg-white/20 backdrop-blur-md px-6 md:px-10 py-3 rounded-full border border-white/40 shadow-xl pointer-events-auto">
+export const GlobalHeader: React.FC<{ onHome: () => void; onStory: () => void; onGallery: () => void; onYourJam: () => void; onSettings: () => void; onExplore: () => void; currentStep: string }> = ({ onHome, onStory, onGallery, onYourJam, onSettings, onExplore, currentStep }) => {
+  const isTightHeader = ['story', 'gallery', 'yourJam', 'settings'].includes(currentStep);
+
+  return (
+    <header className={`fixed top-2 md:top-3 left-0 right-0 z-[100] flex justify-center pointer-events-none ${isTightHeader ? 'p-2' : 'p-3 md:p-4'}`}>
+      <nav className={`flex items-center bg-white/20 backdrop-blur-md rounded-full border border-white/40 shadow-xl pointer-events-auto ${isTightHeader ? 'gap-4 md:gap-8 px-5 md:px-8 py-2' : 'gap-5 md:gap-10 px-5 md:px-8 py-2.5'}`}>
       <div 
         onClick={onHome} 
         className="text-xl md:text-2xl text-white font-black cursor-pointer hover:scale-110 transition-transform select-none drop-shadow-[0_2px_2px_rgba(0,0,0,0.1)]" 
@@ -38,6 +41,7 @@ export const GlobalHeader: React.FC<{ onHome: () => void; onStory: () => void; o
           Settings
         </button>
       </div>
-    </nav>
-  </header>
-);
+      </nav>
+    </header>
+  );
+};

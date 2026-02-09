@@ -1,13 +1,15 @@
 
 import React, { useState } from 'react';
+import { AppMode } from '../../services/types';
 
 interface ExploreScreenProps {
   onBack: () => void;
   onCreateCustom: (name: string) => void;
+  onPickPreset: (mode: AppMode, name: string) => void;
 }
 
 // --- ExploreScreen: Create custom instruments via Gemini ---
-export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCustom }) => {
+export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCustom, onPickPreset }) => {
   const [customName, setCustomName] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -22,6 +24,12 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
     { name: 'Snake shaped xylophone', icon: '🐍🎵', color: 'bg-emerald-400' },
     { name: 'Neon harp', icon: '🌈✨', color: 'bg-purple-400' }
   ];
+
+  const presetModes: Record<string, AppMode> = {
+    'Piano with wings': AppMode.PIANO,
+    'Snake shaped xylophone': AppMode.XYLOPHONE,
+    'Neon harp': AppMode.HARP
+  };
 
   return (
     <div className="w-full max-w-6xl mx-auto p-6 md:p-12 bg-white/40 backdrop-blur-xl rounded-[3rem] md:rounded-[4rem] shadow-2xl border-[8px] md:border-[12px] border-white/60 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -81,7 +89,7 @@ export const ExploreScreen: React.FC<ExploreScreenProps> = ({ onBack, onCreateCu
           {suggestions.map((item) => (
             <button
               key={item.name}
-              onClick={() => onCreateCustom(item.name)}
+              onClick={() => onPickPreset(presetModes[item.name] || AppMode.PIANO, item.name)}
               className={`${item.color} p-10 rounded-[3rem] shadow-[0_12px_0_rgba(0,0,0,0.1)] hover:-translate-y-2 hover:scale-105 transition-all flex flex-col items-center border-[10px] border-white/30 group`}
             >
               <span className="text-7xl mb-4 group-hover:animate-bounce">{item.icon}</span>

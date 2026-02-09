@@ -25,9 +25,10 @@ import {
 import { LandingScreen } from './components/screens/LandingScreen';
 import { StoryScreen } from './components/header/StoryScreen';
 import SettingsPage from './components/header/SettingsPage';
-import GalleryPage from './components/header/GalleryPage';
+import { GalleryPage } from './components/header/GalleryPage';
 import { YourJamScreen } from './components/header/YourJamPage';
 import { ExploreScreen } from './components/screens/ExplorePage';
+import ExplorePresets from './components/player/ExplorePresets';
 
 // --- Player Components ---
 import BlueprintDisplay from './components/player/BlueprintDisplay';
@@ -52,8 +53,10 @@ const App: React.FC = () => {
     capturedImage,
     recording,
     sessionStats,
+    exploreMode,
     handlePick,
     handleCreateCustom,
+    handlePickPreset,
     handleShowBlueprint,
     handleQuickStart,
     handleCapture,
@@ -67,6 +70,7 @@ const App: React.FC = () => {
     'settings',
     'yourJam',
     'explore',
+    'explorePreset',
     'pick',
     'provide',
     'result',
@@ -109,7 +113,8 @@ const App: React.FC = () => {
         step === 'gallery' ||
         step === 'settings' ||
         step === 'yourJam' ||
-        step === 'explore') && (
+        step === 'explore' ||
+        step === 'explorePreset') && (
         <div className="absolute inset-0 pointer-events-none z-0">
           <ScribbleDoodle className="absolute left-[5%] top-[12%] w-[180px] opacity-60 animate-float" style={{ animationDuration: '12s' }} />
           <WaveDoodle className="absolute right-[-10%] top-[10%] w-[600px] opacity-40 animate-drift" />
@@ -139,7 +144,7 @@ const App: React.FC = () => {
         <div className="relative z-10 w-full flex flex-col items-center px-4">
           {error && (
             <div className="bg-red-100 border-4 border-red-200 text-red-600 p-6 rounded-[2rem] mb-12 flex items-center gap-3 animate-bounce shadow-xl font-black uppercase tracking-widest max-w-2xl mx-auto">
-              <span>⚠️ {error}</span>
+              <span>&#9888; {error}</span>
             </div>
           )}
 
@@ -147,7 +152,11 @@ const App: React.FC = () => {
 
           {step === 'pick' && (
             <div className="flex flex-col items-center w-full min-h-[calc(100vh-200px)] justify-start pb-48">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-10 w-full max-w-4xl py-12 animate-in slide-in-from-bottom-10 duration-700 relative z-50 grid-auto-rows-fr">
+              <div className="relative w-full max-w-4xl py-12">
+                <h2 className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 top-0 text-4xl md:text-6xl font-black text-[#1e3a8a] uppercase tracking-tighter z-20 px-4 whitespace-nowrap" style={{ fontFamily: 'Fredoka One' }}>
+                  Pick Your Instrument
+                </h2>
+                <div className="pt-20 grid grid-cols-1 sm:grid-cols-2 gap-10 w-full py-12 animate-in slide-in-from-bottom-10 duration-700 relative z-50 grid-auto-rows-fr">
                 {INSTRUMENTS.map((inst) => (
                   <button
                     key={inst.type}
@@ -168,10 +177,11 @@ const App: React.FC = () => {
                   className="bg-orange-400 h-full p-12 rounded-[4rem] shadow-[0_20px_0_rgba(0,0,0,0.1)] hover:-translate-y-4 hover:scale-105 transition-all flex flex-col items-center border-[12px] border-white/30 group"
                 >
                   <div className="w-40 h-40 mb-6 drop-shadow-2xl group-hover:animate-pulse flex items-center justify-center">
-                    <span className="text-[120px]">🧭</span>
+                    <span className="text-[120px]">&#129517;</span>
                   </div>
                   <span className="text-4xl font-black text-white uppercase tracking-widest mt-auto">Explore</span>
                 </button>
+              </div>
               </div>
 
               <div className="fixed bottom-0 left-0 right-0 h-[30vh] overflow-hidden pointer-events-none z-10 opacity-80 translate-y-[15%]">
@@ -186,7 +196,7 @@ const App: React.FC = () => {
                 onClick={() => setStep('pick')}
                 className="bg-white/40 backdrop-blur-md text-[#1e3a8a] px-8 py-3 rounded-full font-black uppercase tracking-widest text-sm flex items-center gap-2 shadow-lg hover:scale-110 transition-transform border-4 border-white mb-2"
               >
-                <span>←</span> Change Instrument
+                <span>&larr;</span> Change Instrument
               </button>
 
               <div className="w-32 h-32 md:w-48 md:h-48 drop-shadow-2xl animate-wobble -mb-4">
@@ -202,14 +212,14 @@ const App: React.FC = () => {
                   onClick={() => setStep('scan')}
                   className="bg-white p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 hover:scale-110 transition-transform border-[8px] border-sky-200 group"
                 >
-                  <span className="text-8xl group-hover:scale-125 transition-transform">📷</span>
+                  <span className="text-8xl group-hover:scale-125 transition-transform">&#128247;</span>
                   <span className="text-2xl font-black text-sky-600 uppercase tracking-widest">Scan Drawing</span>
                 </button>
                 <button
                   onClick={handleQuickStart}
                   className="bg-yellow-400 p-12 rounded-[3rem] shadow-2xl flex flex-col items-center gap-6 hover:scale-110 transition-transform border-[8px] border-yellow-200 group"
                 >
-                  <span className="text-8xl group-hover:animate-bounce">⚡</span>
+                  <span className="text-8xl group-hover:animate-bounce">&#9889;</span>
                   <span className="text-2xl font-black text-yellow-900 uppercase tracking-widest">Instant Magic</span>
                 </button>
               </div>
@@ -219,15 +229,9 @@ const App: React.FC = () => {
               <div className="flex flex-col items-center gap-6 mb-12">
                 <label className="cursor-pointer bg-emerald-500 hover:bg-emerald-600 text-white px-10 py-4 rounded-full font-black uppercase tracking-widest shadow-[0_6px_0_#065f46] transition-all hover:translate-y-1 active:shadow-none flex items-center gap-3">
                   <input type="file" className="hidden" accept="image/*" onChange={handleFileUpload} />
-                  <span>📁</span> Upload Drawing Instead
+                  <span>&#128194;</span> Upload Drawing Instead
                 </label>
 
-                <button
-                  onClick={handleShowBlueprint}
-                  className="text-white text-xl underline font-black uppercase tracking-[0.2em] hover:text-[#1e3a8a] transition-colors py-4"
-                >
-                  Wait, I need a blueprint guide!
-                </button>
               </div>
             </div>
           )}
@@ -241,13 +245,13 @@ const App: React.FC = () => {
                   onClick={() => setStep('scan')}
                   className="px-12 py-7 bg-blue-500 text-white rounded-full text-2xl font-black shadow-[0_10px_0_#1e3a8a] hover:bg-blue-600 transition-all hover:translate-y-1 active:shadow-none uppercase tracking-widest flex items-center gap-4"
                 >
-                  <span>📸</span> OPEN CAMERA
+                  <span>&#128247;</span> OPEN CAMERA
                 </button>
                 <button
                   onClick={handleQuickStart}
                   className="px-12 py-7 bg-yellow-500 text-white rounded-full text-2xl font-black shadow-[0_10px_0_#ca8a04] hover:bg-yellow-600 transition-all hover:translate-y-1 active:shadow-none uppercase tracking-widest flex items-center gap-4"
                 >
-                  <span>⚡</span> TRY DEMO
+                  <span>&#9889;</span> TRY DEMO
                 </button>
               </div>
 
@@ -259,7 +263,7 @@ const App: React.FC = () => {
 
           {step === 'story' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[260px] overflow-hidden pointer-events-none z-0 -mb-10 scale-105 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <StoryScreen onBack={goHome} />
@@ -268,7 +272,7 @@ const App: React.FC = () => {
 
           {step === 'gallery' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[260px] overflow-hidden pointer-events-none z-0 -mb-10 scale-105 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <div className="relative z-10 w-full flex justify-center">
@@ -279,7 +283,7 @@ const App: React.FC = () => {
 
           {step === 'yourJam' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[260px] overflow-hidden pointer-events-none z-0 -mb-10 scale-105 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <div className="relative z-10 w-full flex justify-center">
@@ -290,16 +294,22 @@ const App: React.FC = () => {
 
           {step === 'explore' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[260px] overflow-hidden pointer-events-none z-0 -mb-10 scale-105 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
-              <ExploreScreen onBack={() => setStep('pick')} onCreateCustom={handleCreateCustom} />
+              <ExploreScreen onBack={() => setStep('pick')} onCreateCustom={handleCreateCustom} onPickPreset={handlePickPreset} />
+            </div>
+          )}
+
+          {step === 'explorePreset' && exploreMode && (
+            <div className="fixed inset-0 z-[150] bg-black">
+              <ExplorePresets mode={exploreMode} onExit={handleFinishedPlaying} />
             </div>
           )}
 
           {step === 'settings' && (
             <div className="w-full flex flex-col items-center pb-24 relative">
-              <div className="w-full max-w-[1200px] h-[280px] overflow-hidden pointer-events-none z-0 -mb-16 scale-110 origin-bottom">
+              <div className="w-full max-w-[1200px] h-[260px] overflow-hidden pointer-events-none z-0 -mb-10 scale-105 origin-bottom">
                 <RedMonster className="w-full h-full" />
               </div>
               <SettingsPage onBack={() => setStep('landing')} />
@@ -350,3 +360,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

@@ -15,6 +15,8 @@ class ToneService {
   // Melodic Engines
   private piano: Tone.PolySynth | null = null;
   private harp: Tone.PolySynth | null = null;
+  private neonHarp: Tone.PolySynth | null = null;
+  private xylophone: Tone.PolySynth | null = null;
   private bassSynth: Tone.MonoSynth | null = null;
   private padSynth: Tone.PolySynth | null = null;
 
@@ -23,6 +25,8 @@ class ToneService {
   private harpChorus: Tone.Chorus | null = null;
   private harpReverb: Tone.Reverb | null = null;
   private harpGain: Tone.Gain | null = null;
+  private neonCrusher: Tone.BitCrusher | null = null;
+  private neonGain: Tone.Gain | null = null;
 
   // Master FX Chain
   private masterEQ: Tone.EQ3 | null = null;
@@ -108,7 +112,7 @@ class ToneService {
         oscillator: { type: 'triangle' },
         envelope: { attack: 0.02, decay: 0.1, sustain: 0.2, release: 0.4 } // Tighter envelope
       }).connect(output);
-      this.piano.maxPolyphony = 32;
+      this.piano.maxPolyphony = 64;
 
       // Harp: plucky + airy chain
       this.harpFilter = new Tone.Filter({ type: 'highpass', frequency: 140, rolloff: -12 });
@@ -126,6 +130,27 @@ class ToneService {
       });
       this.harp.chain(this.harpFilter, this.harpChorus, this.harpReverb, this.harpGain, output);
       this.harp.maxPolyphony = 48;
+
+      // Neon Harp: brighter, more digital tone
+      this.neonCrusher = new Tone.BitCrusher(4);
+      this.neonGain = new Tone.Gain(0.7);
+      this.neonHarp = new Tone.PolySynth(Tone.FMSynth, {
+        harmonicity: 1.5,
+        modulationIndex: 15,
+        oscillator: { type: 'square' },
+        envelope: { attack: 0.001, decay: 0.2, sustain: 0.05, release: 0.6 },
+        modulation: { type: 'sine' },
+        modulationEnvelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.1 }
+      });
+      this.neonHarp.chain(this.neonCrusher, this.neonGain, output);
+      this.neonHarp.maxPolyphony = 48;
+
+      // Xylophone: short, percussive tone
+      this.xylophone = new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: 'sine' },
+        envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.05 }
+      }).connect(output);
+      this.xylophone.maxPolyphony = 24;
 
       this.bassSynth = new Tone.MonoSynth({
         oscillator: { type: 'fmsquare' },
@@ -171,6 +196,8 @@ class ToneService {
       this.tomLow,
       this.piano,
       this.harp,
+      this.neonHarp,
+      this.xylophone,
       this.bassSynth,
       this.padSynth
     ].forEach((s) => {
@@ -233,6 +260,12 @@ class ToneService {
         this.bassSynth?.triggerAttack(this.parseNote(id), triggerTime);
       } else if (prefix === 'pad') {
         this.padSynth?.triggerAttack(this.parseNote(id), triggerTime);
+      } else if (prefix === 'neon' || id.startsWith('neon_')) {
+        const neonNote = this.parseNote(id.replace('neon_', ''));
+        this.neonHarp?.triggerAttack(neonNote, triggerTime);
+      } else if (prefix === 'xylo' || id.startsWith('xylo_')) {
+        const xyloNote = this.parseNote(id.replace('xylo_', ''));
+        this.xylophone?.triggerAttack(xyloNote, triggerTime);
       } else if (prefix === 'harp' || currentInstrument === 'Harp' || id.startsWith('harp_')) {
         const harpNote = this.parseNote(id.replace('harp_', ''));
         this.harp?.triggerAttack(harpNote, triggerTime);
@@ -275,6 +308,12 @@ class ToneService {
         this.bassSynth?.triggerRelease(releaseTime);
       } else if (prefix === 'pad') {
         this.padSynth?.triggerRelease(this.parseNote(id), releaseTime);
+      } else if (prefix === 'neon' || id.startsWith('neon_')) {
+        const neonNote = this.parseNote(id.replace('neon_', ''));
+        this.neonHarp?.triggerRelease(neonNote, releaseTime);
+      } else if (prefix === 'xylo' || id.startsWith('xylo_')) {
+        const xyloNote = this.parseNote(id.replace('xylo_', ''));
+        this.xylophone?.triggerRelease(xyloNote, releaseTime);
       } else if (prefix === 'harp' || currentInstrument === 'Harp' || id.startsWith('harp_')) {
         const harpNote = this.parseNote(id.replace('harp_', ''));
         this.harp?.triggerRelease(harpNote, releaseTime);

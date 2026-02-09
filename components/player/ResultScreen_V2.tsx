@@ -7,6 +7,57 @@ import { filterPlayableTracks } from '../../services/youtubeAvailability';
 import { startLyriaComposer } from '../../services/aiComposer';
 import RecapCard from './RecapCard_V2';
 
+const MY_JAMS_STORAGE_KEY = 'plinky_my_jams_v1';
+const GALLERY_STORAGE_KEY = 'plinky_gallery_v1';
+
+const saveJamToLocalStorage = (item: {
+  id: string;
+  title: string;
+  date: string;
+  instrument: string;
+  color: string;
+  coverUrl: string;
+}) => {
+  try {
+    const prev = JSON.parse(localStorage.getItem(MY_JAMS_STORAGE_KEY) || '[]');
+    localStorage.setItem(MY_JAMS_STORAGE_KEY, JSON.stringify([item, ...prev]));
+  } catch (e) {
+    console.warn('Failed to save jam', e);
+  }
+};
+
+const saveToGallery = (item: {
+  id: string;
+  title: string;
+  date: string;
+  instrument: string;
+  coverUrl: string;
+  author?: string;
+}) => {
+  try {
+    const prev = JSON.parse(localStorage.getItem(GALLERY_STORAGE_KEY) || '[]');
+    localStorage.setItem(GALLERY_STORAGE_KEY, JSON.stringify([item, ...prev]));
+  } catch (e) {
+    console.warn('Failed to save to gallery', e);
+  }
+};
+
+const getInstrumentColor = (instrument?: string) => {
+  switch ((instrument || '').toLowerCase()) {
+    case 'piano':
+      return 'bg-blue-400';
+    case 'drum':
+    case 'drums':
+      return 'bg-red-400';
+    case 'harp':
+      return 'bg-emerald-400';
+    case 'xylophone':
+      return 'bg-emerald-400';
+    default:
+      return 'bg-indigo-400';
+  }
+};
+
 interface Props {
   recording: Blob | null;
   onRestart: () => void;
@@ -54,7 +105,10 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   const [recapStage, setRecapStage] = useState<string>('');
   const [recapError, setRecapError] = useState<string | null>(null);
   const [recapErrorDetails, setRecapErrorDetails] = useState<string | null>(null);
+  const [studioProgress, setStudioProgress] = useState(0);
   const hasRecapRef = useRef(false);
+  const studioProgressTimerRef = useRef<number | null>(null);
+  const jamSavedRef = useRef(false);
 
   // Studio Mix states
   const [isComposing, setIsComposing] = useState(false);
@@ -100,6 +154,25 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
     const timer = setTimeout(() => { if (isMeasuring) { setAccurateDuration(stats?.durationSeconds || 0); setIsMeasuring(false); } }, 2000);
     return () => { tempAudio.removeEventListener('loadedmetadata', handleLoadedMetadata); clearTimeout(timer); };
   }, [audioUrl, stats]);
+
+  const stopJacketProgress = () => {
+    if (studioProgressTimerRef.current) {
+      clearInterval(studioProgressTimerRef.current);
+      studioProgressTimerRef.current = null;
+    }
+  };
+
+  const startJacketProgress = () => {
+    stopJacketProgress();
+    setStudioProgress(6);
+    studioProgressTimerRef.current = window.setInterval(() => {
+      setStudioProgress((prev) => {
+        const bump = 1 + Math.random() * 4;
+        const next = prev + bump;
+        return Math.min(next, 92);
+      });
+    }, 200);
+  };
 
   useEffect(() => {
     if (hasRecapRef.current) return;
@@ -158,6 +231,19 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
           finalRecap.personalJacketUrl = jacketUrl;
           setRecap({ ...finalRecap });
           console.info('[Result] Album jacket received');
+          if (!jamSavedRef.current && jacketUrl) {
+            jamSavedRef.current = true;
+            const id = (crypto as any)?.randomUUID?.() || `jam_${Date.now()}`;
+            const date = new Date().toISOString().slice(0, 10);
+            saveJamToLocalStorage({
+              id,
+              title: finalRecap.trackTitle || 'My Jam',
+              date,
+              instrument: stats?.instrument || 'Unknown',
+              color: getInstrumentColor(stats?.instrument),
+              coverUrl: jacketUrl
+            });
+          }
         } catch (err) {
           console.warn('[Result] Album jacket generation failed', err);
         }
@@ -172,6 +258,8 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
         setRecapError("Recap generation failed. Please try again.");
         setRecapErrorDetails(details);
       } finally {
+        setStudioProgress(100);
+        stopJacketProgress();
         setIsRecapLoading(false); 
         setIsMixing(false); 
         setRecapStage('');
@@ -329,6 +417,17 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
   };
 
   const isComposerReady = Boolean(recap) && !isRecapLoading && !isMeasuring && !isMixing;
+  const isJacketStage = !isMeasuring && isRecapLoading && recapStage === 'Generating album jacket...';
+
+  useEffect(() => {
+    if (isJacketStage) {
+      startJacketProgress();
+    } else {
+      stopJacketProgress();
+      setStudioProgress(0);
+    }
+    return () => stopJacketProgress();
+  }, [isJacketStage]);
 
   return (
     <div className="flex flex-col items-center w-full max-w-5xl mx-auto p-6 md:p-16 bg-white/40 backdrop-blur-xl rounded-[4rem] md:rounded-[6rem] shadow-2xl border-[8px] md:border-[16px] border-white/60 mb-20 animate-in fade-in slide-in-from-bottom-8 duration-700">
@@ -377,6 +476,17 @@ const ResultScreen: React.FC<Props> = ({ recording, onRestart, stats }) => {
               <p className="mt-4 text-[#1e3a8a]/70 font-black uppercase tracking-[0.2em] text-xs md:text-sm text-center">
                 {recapStage}
               </p>
+            )}
+            {isJacketStage && (
+              <div className="mt-8 w-full max-w-xl">
+                {/* PROGRESS BAR CONTAINER */}
+                <div className="h-6 w-full bg-white/30 rounded-full border-2 border-white/40 overflow-hidden shadow-inner backdrop-blur-md relative">
+                  <div 
+                    className="h-full bg-gradient-to-r from-sky-400 via-indigo-500 to-pink-500 transition-all duration-300 ease-out shadow-[0_0_15px_rgba(236,72,153,0.5)]"
+                    style={{ width: `${studioProgress}%` }}
+                  />
+                </div>
+              </div>
             )}
           </div>
         ) : recap ? (

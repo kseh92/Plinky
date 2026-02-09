@@ -1,4 +1,10 @@
 import React from 'react';
+import cosmicSquare from '../../assets/cosmic_square.png';
+import marshmallowKeys from '../../assets/marshmallow_keys.png';
+import neonHarp from '../../assets/neon_harp.png';
+import skyblueJams from '../../assets/skyblue_james.png';
+import monsterBeats from '../../assets/monster_beats.png';
+import rainbowStrings from '../../assets/rainbow_strings.png';
 
 interface GalleryItem {
   id: string;
@@ -11,12 +17,12 @@ interface GalleryItem {
 }
 
 const DUMMY_GALLERY: GalleryItem[] = [
-  { id: '1', title: 'Cosmic Snare', artist: '@LittleMozart', likes: 245, color: 'bg-indigo-400', instrument: '🥁', coverUrl: 'https://images.unsplash.com/photo-1514525253361-bee8718a300a?q=80&w=400' },
-  { id: '2', title: 'Marshmallow Keys', artist: '@DoodleQueen', likes: 189, color: 'bg-pink-400', instrument: '🎹', coverUrl: 'https://images.unsplash.com/photo-1552422535-c45813c61732?q=80&w=400' },
-  { id: '3', title: 'Neon Harp', artist: '@RockstarKid', likes: 562, color: 'bg-emerald-400', instrument: '🎼', coverUrl: 'https://images.unsplash.com/photo-1459749411177-042180ce673c?q=80&w=400' },
-  { id: '4', title: 'Skyblue Jams', artist: '@PlinkyPro', likes: 1024, color: 'bg-sky-400', instrument: '🎹', coverUrl: 'https://images.unsplash.com/photo-1493225255756-d9584f8606e9?q=80&w=400' },
-  { id: '5', title: 'Monster Beats', artist: '@RedMonsterFan', likes: 731, color: 'bg-red-400', instrument: '🥁', coverUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?q=80&w=400' },
-  { id: '6', title: 'Rainbow Strings', artist: '@Artiste', likes: 412, color: 'bg-yellow-400', instrument: '🎹', coverUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=400' },
+  { id: '1', title: 'Cosmic Snare', artist: '@LittleMozart', likes: 245, color: 'bg-indigo-400', instrument: '🥁', coverUrl: cosmicSquare },
+  { id: '2', title: 'Marshmallow Keys', artist: '@DoodleQueen', likes: 189, color: 'bg-pink-400', instrument: '🎹', coverUrl: marshmallowKeys },
+  { id: '3', title: 'Neon Harp', artist: '@RockstarKid', likes: 562, color: 'bg-emerald-400', instrument: '🎼', coverUrl: neonHarp },
+  { id: '4', title: 'Skyblue Jams', artist: '@PlinkyPro', likes: 1024, color: 'bg-sky-400', instrument: '🎹', coverUrl: skyblueJams },
+  { id: '5', title: 'Monster Beats', artist: '@RedMonsterFan', likes: 731, color: 'bg-red-400', instrument: '🥁', coverUrl: monsterBeats },
+  { id: '6', title: 'Rainbow Strings', artist: '@Artiste', likes: 412, color: 'bg-yellow-400', instrument: '🎹', coverUrl: rainbowStrings },
 ];
 
 const GalleryPage: React.FC<{ onBack: () => void }> = ({ onBack }) => {

@@ -159,7 +159,7 @@ const ExplorePresets: React.FC<Props> = ({ mode, onExit, onSwitchPreset, presetN
   const drawCustomOverlay = (ctx: CanvasRenderingContext2D, w: number, h: number) => {
     const name = presetName || '';
     const motif = getMotif(name);
-    if (mode === AppMode.XYLOPHONE) return;
+    if (mode === AppMode.XYLOPHONE || mode === AppMode.HARP) return;
     ctx.save();
     ctx.globalAlpha = 0.85;
     ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';

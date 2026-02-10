@@ -64,6 +64,7 @@ export interface RecommendedTrack {
   artist: string;
   youtubeMusicUrl: string;
   coverImageUrl: string;
+  youtubeVideoId?: string;
 }
 
 export interface RecapData {

@@ -107,3 +107,23 @@
 ## 2026-02-08: Piano Doodle Render, Mirroring, and Silhouette-Based Scan Alignment
 - **Prompt**: "Rebuild the piano rendering in a kid-doodle style (black doodle lines, black keys filled, white keys semi-transparent). Fix mirroring issues between piano, canvas, and hands. Keep particle/feedback effects above the instrument. Make scan results follow the scanned silhouette (especially for piano) and improve scan reliability. Adjust camera scan UI so buttons don’t block the view, and keep scan preview mirrored."
 - **Result**: Reworked piano rendering to doodle-style keys with black/white fills and hand-drawn outlines. Corrected mirroring by flipping piano hit zones while keeping video/canvas consistency and made scan preview mirrored. Moved particle effects and finger markers above instrument rendering. Added silhouette extraction + overlay for scan confirmation/play, refined bounds detection to avoid border frames, and re-mapped piano zones to silhouette bounds using scanned key count. Improved scan prompts/thresholds and adjusted CameraScanner layout so buttons sit below the preview.
+
+## 2026-02-10: Bug Fixes for Audio Enable, Low-Perf Mode, and YouTube Thumbnails
+- **Prompt**: "Explore preset instruments show 'AudioContext is suspended' and no sound. Add a user-gesture enable flow. Add low-performance auto mode for particle feedback. Fix YouTube 404 spam and missing thumbnails in the result screen."
+- **Result**: Added a tap-to-enable overlay in Explore presets to reliably start Tone.js. Implemented a low-performance auto mode that disables particles when FPS drops. Adjusted YouTube availability handling to retain recommendations on oEmbed failure and preserve video IDs for thumbnail fallback, reducing 404s and restoring thumbnails.
+
+## 2026-02-10: Scan UI Mirror & Controls Layout
+- **Prompt**: "In Scan Your Paper, show the camera preview in mirror mode, and move SNAP PHOTO / UPLOAD so they don’t block the camera view."
+- **Result**: Restored mirror preview for the scan camera and moved capture/upload controls below the preview for a clearer scanning view.
+
+## 2026-02-10: Piano Silhouette Alignment & Bounds Refinement
+- **Prompt**: "Make piano scans follow the detected silhouette bounds and improve silhouette accuracy so the piano doesn’t fill the whole screen."
+- **Result**: Added silhouette extraction and bounds mapping for scan-based instruments, used outline-driven bounds for better accuracy, and filtered out edge-frame artifacts to prevent oversized bounds.
+
+## 2026-02-10: Performance Feedback & Overlay Ordering
+- **Prompt**: "Feedback particles and finger markers should stay above instruments, but avoid performance drops during play."
+- **Result**: Ensured finger markers/particles render above instrument visuals and introduced particle throttling plus low-perf auto-disable when FPS drops.
+
+## 2026-02-10: UI Copy Visibility on Pick Screen
+- **Prompt**: "After Start, 'Pick Your Instrument' should appear above the instrument buttons."
+- **Result**: Added the missing header to the pick screen so the selection title is visible.

@@ -23,14 +23,14 @@ const getYouTubeVideoId = (url: string | undefined | null) => {
   return null;
 };
 
-const getYouTubeThumbUrls = (url: string | undefined | null) => {
-  const id = getYouTubeVideoId(url);
+const getYouTubeThumbUrls = (url: string | undefined | null, fallbackId?: string | null) => {
+  const id = fallbackId || getYouTubeVideoId(url);
   if (!id) return null;
   return [
-    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
     `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
     `https://i.ytimg.com/vi/${id}/mqdefault.jpg`,
-    `https://i.ytimg.com/vi/${id}/default.jpg`
+    `https://i.ytimg.com/vi/${id}/default.jpg`,
+    `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`
   ];
 };
 
@@ -129,7 +129,7 @@ const RecapCard: React.FC<Props> = ({ recap }) => {
           
           <div className="grid grid-cols-1 gap-4 md:gap-6">
             {recap.recommendedSongs.map((song, idx) => {
-              const youtubeThumbUrls = getYouTubeThumbUrls(song.youtubeMusicUrl) || [];
+              const youtubeThumbUrls = getYouTubeThumbUrls(song.youtubeMusicUrl, song.youtubeVideoId) || [];
               const coverUrl = song.coverImageUrl || youtubeThumbUrls[0] || DEFAULT_COVER_URL;
               const fallbackUrls = song.coverImageUrl ? youtubeThumbUrls : youtubeThumbUrls.slice(1);
               return (

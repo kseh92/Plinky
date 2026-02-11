@@ -2,7 +2,12 @@
 <img width="1200" height="475" alt="Plinky Landing" src="https://github.com/user-attachments/assets/b0d01cb5-c5c0-46bd-bf13-f2a71848f8db" />
 </div>
 
-# Run and deploy your AI Studio app
+# Plinky: Doodle Symphony for Kids
+
+A playful web app where kids draw instruments on paper, scan them, and perform using hand tracking.  
+It also generates an AI studio recap, album jacket, and music recommendations.
+
+# Run and Deploy
 
 This contains everything you need to run your app locally.
 

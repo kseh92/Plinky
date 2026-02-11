@@ -12,6 +12,22 @@ const parseVideoId = (url: string) => {
   }
 };
 
+const parseThumbId = (url?: string | null) => {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    if (!u.hostname.includes('ytimg.com')) return '';
+    const match = u.pathname.match(/\/vi\/([^/]+)/);
+    return match?.[1] || '';
+  } catch {
+    return '';
+  }
+};
+
+const extractVideoId = (track: RecommendedTrack) => {
+  return parseVideoId(track.youtubeMusicUrl) || parseThumbId(track.coverImageUrl);
+};
+
 const normalizeText = (text: string) =>
   text
     .toLowerCase()
@@ -64,20 +80,19 @@ export async function filterPlayableTracks(tracks: RecommendedTrack[]): Promise<
 
   const results = await Promise.all(
     tracks.map(async (track) => {
-      const id = parseVideoId(track.youtubeMusicUrl);
+      const id = extractVideoId(track);
       const oembed = await checkOEmbed(id);
-      const matches = oembed.ok && !!oembed.title && !!oembed.author
-        ? isLikelyMatch(track.title, track.artist, oembed.title, oembed.author)
-        : false;
-      const safeUrl = matches && id
-        ? buildYouTubeMusicWatchUrl(id)
-        : buildYouTubeMusicSearchUrl(track.title, track.artist);
-      return { track: { ...track, youtubeMusicUrl: safeUrl }, ok: matches };
+      const hasMeta = oembed.ok && !!oembed.title && !!oembed.author;
+      const matches = hasMeta ? isLikelyMatch(track.title, track.artist, oembed.title, oembed.author) : null;
+      const safeUrl = matches === false
+        ? buildYouTubeMusicSearchUrl(track.title, track.artist)
+        : (id ? buildYouTubeMusicWatchUrl(id) : track.youtubeMusicUrl);
+      return { track: { ...track, youtubeMusicUrl: safeUrl, youtubeVideoId: id || track.youtubeVideoId }, ok: matches };
     })
   );
 
-  const playable = results.filter((r) => r.ok).map((r) => r.track);
-  const combined = playable;
+  const playable = results.filter((r) => r.ok !== false).map((r) => r.track);
+  const combined = playable.length ? playable : tracks;
 
   const normalize = (value: string) =>
     value
